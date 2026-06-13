@@ -13,7 +13,7 @@ def _llm_summarize(prompt: str) -> str:
         model=get("OPENAI_MODEL", "gpt-4o"),
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
-        max_tokens=1000,
+        max_completion_tokens=1000,
     )
     return response.choices[0].message.content
 

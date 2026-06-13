@@ -50,6 +50,7 @@ def build_agent():
         api_key=get("OPENAI_API_KEY"),
         temperature=0,
         streaming=True,
+        model_kwargs={"max_completion_tokens": 2000},
     ).bind_tools(ALL_TOOLS)
 
     tool_node = ToolNode(ALL_TOOLS)
