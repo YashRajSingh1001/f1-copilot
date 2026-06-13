@@ -1,0 +1,23 @@
+# Secrets
+.env
+.streamlit/secrets.toml
+
+# F1 data cache (large binary files)
+f1_cache/
+/tmp/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Qdrant local (if ever used)
+chroma_db/
+qdrant_storage/
+
+# OS
+.DS_Store
+Thumbs.db
