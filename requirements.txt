@@ -1,7 +1,7 @@
 # Core LLM + Agent
-openai>=1.30.0
+openai>=2.41.0
 langchain>=0.2.0
-langchain-openai>=0.1.0
+langchain-openai>=0.3.35
 langchain-community>=0.2.0
 langgraph>=0.1.0
 

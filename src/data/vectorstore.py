@@ -6,6 +6,7 @@ from typing import Optional
 from openai import OpenAI
 from qdrant_client import QdrantClient
 from ..config import get
+from ..openai_models import embedding_model
 from qdrant_client.models import (
     Distance,
     VectorParams,
@@ -42,7 +43,7 @@ def _ensure_collection(client: QdrantClient) -> None:
 def _embed(texts: list[str]) -> list[list[float]]:
     oai = OpenAI(api_key=get("OPENAI_API_KEY"))
     response = oai.embeddings.create(
-        model=get("EMBEDDING_MODEL", "text-embedding-3-small"),
+        model=embedding_model(),
         input=texts,
     )
     return [item.embedding for item in response.data]

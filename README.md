@@ -3,7 +3,7 @@
 > "Why was Norris slower than Verstappen in Bahrain?"
 > → Agent pulls telemetry, tire data, weather, race context → answers with exact numbers.
 
-**Stack: GPT-4o · LangGraph · FastF1 · Qdrant Cloud · Streamlit**
+**Stack: GPT-5.4 nano · LangGraph · FastF1 · Qdrant Cloud · Streamlit**
 
 ---
 
@@ -13,7 +13,7 @@
 User Question
      │
      ▼
-LangGraph Agent (GPT-4o)
+LangGraph Agent (GPT-5.4 nano)
      │
      ├──► get_telemetry()        ──► FastF1 API
      ├──► compare_telemetry()    ──► FastF1 API
@@ -24,7 +24,7 @@ LangGraph Agent (GPT-4o)
      └──► search_race_context()  ──► Qdrant Cloud (RAG)
                                        ▲
                               Ingestion Pipeline
-                          FastF1 → GPT-4o summary → embed → store
+                          FastF1 → GPT-5.4 nano summary → embed → store
      │
      ▼
 Synthesised answer with exact numbers
@@ -64,7 +64,10 @@ streamlit run ui/app.py
 
 ```toml
 OPENAI_API_KEY = "sk-..."
-OPENAI_MODEL = "gpt-4o"
+OPENAI_MODEL = "gpt-5.4-nano"
+OPENAI_REASONING_EFFORT = "low"
+OPENAI_TEXT_VERBOSITY = "low"
+OPENAI_MAX_OUTPUT_TOKENS = "2000"
 EMBEDDING_MODEL = "text-embedding-3-small"
 QDRANT_URL = "https://your-cluster.qdrant.io"
 QDRANT_API_KEY = "your-qdrant-key"
@@ -91,7 +94,7 @@ f1-copilot/
 │   └── data/
 │       ├── fastf1_client.py  # FastF1 wrapper (telemetry, tires, weather, results)
 │       ├── vectorstore.py    # Qdrant Cloud RAG
-│       └── ingestion.py      # FastF1 → GPT-4o summary → embed → Qdrant
+│       └── ingestion.py      # FastF1 → GPT-5.4 nano summary → embed → Qdrant
 ├── ui/app.py                 # Streamlit chat UI
 ├── scripts/ingest_race.py    # CLI ingestion
 ├── .streamlit/

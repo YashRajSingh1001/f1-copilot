@@ -10,7 +10,7 @@ and loops back for synthesis. On the final turn (no more tool calls)
 the agent writes the answer and the graph terminates.
 """
 
-from typing import TypedDict, Annotated, Sequence
+from typing import Annotated, Optional, Sequence, TypedDict
 
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage
 from langchain_openai import ChatOpenAI
@@ -19,7 +19,13 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
 from .tools import ALL_TOOLS
-from ..config import get
+from ..openai_models import (
+    max_output_tokens,
+    openai_api_key,
+    openai_model,
+    reasoning_effort,
+    text_verbosity,
+)
 
 
 SYSTEM_PROMPT = """You are the F1 Copilot — an expert Formula 1 performance analyst with deep knowledge of:
@@ -46,11 +52,13 @@ class AgentState(TypedDict):
 
 def build_agent():
     llm = ChatOpenAI(
-        model=get("OPENAI_MODEL", "gpt-4o"),
-        api_key=get("OPENAI_API_KEY"),
-        temperature=0,
+        model=openai_model(),
+        api_key=openai_api_key(),
         streaming=True,
-        model_kwargs={"max_completion_tokens": 2000},
+        max_completion_tokens=max_output_tokens(2000),
+        reasoning_effort=reasoning_effort(),
+        verbosity=text_verbosity(),
+        use_responses_api=True,
     ).bind_tools(ALL_TOOLS)
 
     tool_node = ToolNode(ALL_TOOLS)
@@ -77,7 +85,7 @@ def build_agent():
     return graph.compile()
 
 
-def run_query(question: str, history: list | None = None) -> dict:
+def run_query(question: str, history: Optional[list] = None) -> dict:
     """
     Run a user question through the F1 agent.
     Returns {"answer": str, "tool_calls": list, "messages": list}
@@ -110,7 +118,7 @@ def run_query(question: str, history: list | None = None) -> dict:
     }
 
 
-def stream_query(question: str, history: list | None = None):
+def stream_query(question: str, history: Optional[list] = None):
     """
     Stream the agent's response. Yields dicts with type='token'|'tool_call'|'done'.
     """

@@ -10,6 +10,7 @@ f1_cache/
 __pycache__/
 *.py[cod]
 *.egg-info/
+.f1/
 .venv/
 venv/
 env/

@@ -1,21 +1,26 @@
 """Ingestion pipeline — pull F1 session data, generate summaries, store in vector DB."""
 
 import json
-from openai import OpenAI
 from . import fastf1_client as ff1
 from .vectorstore import ingest_session_summary, ingest_document
-from ..config import get
+from ..openai_models import (
+    max_output_tokens,
+    openai_client,
+    openai_model,
+    reasoning_effort,
+    text_verbosity,
+)
 
 
 def _llm_summarize(prompt: str) -> str:
-    client = OpenAI(api_key=get("OPENAI_API_KEY"))
-    response = client.chat.completions.create(
-        model=get("OPENAI_MODEL", "gpt-4o"),
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0,
-        max_completion_tokens=1000,
+    response = openai_client().responses.create(
+        model=openai_model(),
+        input=prompt,
+        max_output_tokens=max_output_tokens(1000),
+        reasoning={"effort": reasoning_effort()},
+        text={"verbosity": text_verbosity()},
     )
-    return response.choices[0].message.content
+    return response.output_text
 
 
 def ingest_race_session(year: int, grand_prix: str, session_type: str = "R") -> str:
