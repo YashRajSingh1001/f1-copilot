@@ -1,6 +1,5 @@
 """
 F1 Copilot — Streamlit Chat Interface
-Deployable to Streamlit Community Cloud.
 Run locally: streamlit run ui/app.py
 """
 
@@ -11,13 +10,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st
 import plotly.graph_objects as go
 import json
-
-# Load .env locally (no-op on Streamlit Cloud where st.secrets is used)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
 
 from src.agents.f1_agent import stream_query
 from src.data.ingestion import ingest_race_session
@@ -109,7 +101,7 @@ with st.sidebar:
 
     st.divider()
     st.markdown("**Stack**")
-    st.caption("GPT-4o · LangGraph · FastF1 · Qdrant · Streamlit")
+    st.caption("GPT-5.4 nano · LangGraph · FastF1 · Qdrant · Streamlit")
 
 
 # ── Session state ─────────────────────────────────────────────────────────────
@@ -200,8 +192,8 @@ with activity_col:
     st.markdown("#### How it works")
     st.markdown("""
 1. You ask a question
-2. GPT-4o decides which tools to call
+2. GPT-5.4 nano decides which tools to call
 3. Agent pulls live FastF1 data
 4. RAG retrieves race context
-5. GPT-4o synthesises the answer
+5. GPT-5.4 nano synthesises the answer
 """)

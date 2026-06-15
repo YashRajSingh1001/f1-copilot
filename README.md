@@ -37,8 +37,9 @@ Synthesised answer with exact numbers
 ```bash
 pip install -r requirements.txt
 cp .env.example .env
-# Fill in OPENAI_API_KEY, QDRANT_URL, QDRANT_API_KEY
 ```
+
+Edit `.env` and fill in at least `OPENAI_API_KEY`, `QDRANT_URL`, and `QDRANT_API_KEY`.
 
 Get a **free Qdrant Cloud cluster** at [cloud.qdrant.io](https://cloud.qdrant.io) — takes 2 minutes, no credit card.
 
@@ -55,26 +56,18 @@ streamlit run ui/app.py
 
 ---
 
-## Deploy to Streamlit Community Cloud (free)
+## Streamlit configuration
 
-1. Push this repo to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io) → New app
-3. Set **Main file path** to `ui/app.py`
-4. Under **Advanced → Secrets**, paste:
+The app reads configuration from a `.env` file at the project root. Streamlit
+secrets are not used by the app.
 
-```toml
-OPENAI_API_KEY = "sk-..."
-OPENAI_MODEL = "gpt-5.4-nano"
-OPENAI_REASONING_EFFORT = "low"
-OPENAI_TEXT_VERBOSITY = "low"
-OPENAI_MAX_OUTPUT_TOKENS = "2000"
-EMBEDDING_MODEL = "text-embedding-3-small"
-QDRANT_URL = "https://your-cluster.qdrant.io"
-QDRANT_API_KEY = "your-qdrant-key"
-FASTF1_CACHE_PATH = "/tmp/f1_cache"
+```bash
+cp .env.example .env
+# Then edit .env with your OpenAI and Qdrant credentials.
 ```
 
-5. Deploy. Done.
+For hosted Streamlit deployments, make sure the deployment environment creates
+the same root-level `.env` file before running `streamlit run ui/app.py`.
 
 > **Why not Vercel?** FastF1 data loading takes 30–90s (cold) and needs a persistent cache.
 > Vercel serverless functions timeout at 10–60s and have no persistent filesystem.
@@ -87,7 +80,7 @@ FASTF1_CACHE_PATH = "/tmp/f1_cache"
 ```
 f1-copilot/
 ├── src/
-│   ├── config.py             # st.secrets → env var fallback
+│   ├── config.py             # root .env loader
 │   ├── agents/
 │   │   ├── f1_agent.py       # LangGraph ReAct loop
 │   │   └── tools.py          # 7 OpenAI-compatible tool definitions

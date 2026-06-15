@@ -1,17 +1,18 @@
 """
-Central config — reads from st.secrets (Streamlit Cloud) with .env fallback for local dev.
+Central config loaded from the project .env file.
 Import get() everywhere instead of os.getenv() directly.
 """
 
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(PROJECT_ROOT / ".env")
 
 
 def get(key: str, default: str = "") -> str:
-    """Read a secret: st.secrets first (Streamlit Cloud), then env var, then default."""
-    try:
-        import streamlit as st
-        if key in st.secrets:
-            return st.secrets[key]
-    except Exception:
-        pass
+    """Read a config value from .env, then process env, then default."""
     return os.getenv(key, default)
