@@ -2,6 +2,7 @@
 
 import json
 import os
+from threading import Lock
 from typing import Annotated, Optional
 
 from langchain_core.tools import tool
@@ -12,13 +13,15 @@ from ..data.vectorstore import search
 
 # Session cache so repeated tool calls in one conversation don't re-download data
 _session_cache: dict = {}
+_session_cache_lock = Lock()
 
 
 def _get_session(year: int, grand_prix: str, session_type: str = "R"):
     key = f"{year}_{grand_prix}_{session_type}"
-    if key not in _session_cache:
-        _session_cache[key] = ff1.load_session(year, grand_prix, session_type)
-    return _session_cache[key]
+    with _session_cache_lock:
+        if key not in _session_cache:
+            _session_cache[key] = ff1.load_session(year, grand_prix, session_type)
+        return _session_cache[key]
 
 
 @tool

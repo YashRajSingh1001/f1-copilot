@@ -46,6 +46,25 @@ You have access to real-time F1 data tools. When answering questions:
 When comparing drivers, identify EXACTLY where time is lost: which corners, which sectors, and WHY (braking too late, low minimum speed, understeer, tire deg, etc.)."""
 
 
+def _content_to_text(content) -> str:
+    """Convert LangChain/OpenAI structured content blocks into display text."""
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text") or item.get("content")
+                if isinstance(text, str):
+                    parts.append(text)
+        return "\n".join(parts)
+
+    return str(content)
+
+
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
@@ -109,7 +128,7 @@ def run_query(question: str, history: Optional[list] = None) -> dict:
                 })
         elif hasattr(msg, "content") and msg.content and not getattr(msg, "tool_calls", None):
             if hasattr(msg, "type") and msg.type == "ai":
-                final_answer = msg.content
+                final_answer = _content_to_text(msg.content)
 
     return {
         "answer": final_answer,
@@ -136,6 +155,6 @@ def stream_query(question: str, history: Optional[list] = None):
 
         elif hasattr(last_msg, "content") and last_msg.content:
             if hasattr(last_msg, "type") and last_msg.type == "ai" and not getattr(last_msg, "tool_calls", None):
-                yield {"type": "answer", "content": last_msg.content}
+                yield {"type": "answer", "content": _content_to_text(last_msg.content)}
 
     yield {"type": "done"}
