@@ -194,6 +194,33 @@ def get_race_results(session: fastf1.core.Session) -> dict:
     }
 
 
+def get_lap_times_series(session: fastf1.core.Session, driver: str) -> dict:
+    """Get lap-by-lap times with compound and stint info — used for degradation charts."""
+    laps = session.laps.pick_drivers(driver).copy()
+    if laps.empty:
+        return {"error": f"No data for driver {driver}"}
+
+    records = []
+    for _, lap in laps.iterrows():
+        if pd.notna(lap["LapTime"]) and pd.notna(lap["LapNumber"]):
+            records.append({
+                "lap": int(lap["LapNumber"]),
+                "time_s": round(float(lap["LapTime"].total_seconds()), 3),
+                "compound": str(lap.get("Compound", "UNKNOWN")),
+                "stint": int(lap.get("Stint", 0)),
+                "is_pit_out": pd.notna(lap.get("PitOutTime")) and not pd.isna(lap.get("PitOutTime")),
+            })
+
+    return {"driver": driver, "laps": records}
+
+
+def get_multi_driver_lap_times(
+    session: fastf1.core.Session, drivers: list[str]
+) -> dict:
+    """Get lap times for multiple drivers — used for race pace comparison charts."""
+    return {drv: get_lap_times_series(session, drv) for drv in drivers}
+
+
 def get_sector_analysis(
     session: fastf1.core.Session, driver_a: str, driver_b: str
 ) -> dict:

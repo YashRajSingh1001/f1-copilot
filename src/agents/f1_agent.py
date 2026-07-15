@@ -1,18 +1,13 @@
 """
-F1 Copilot agent built on LangGraph.
+F1 Copilot agent — LangGraph ReAct loop with conversation memory.
 
-Graph topology:
-  START → analyst → [tool_node | END]
-             ↑______________|
-
-The analyst node decides which tools to call; tool_node executes them
-and loops back for synthesis. On the final turn (no more tool calls)
-the agent writes the answer and the graph terminates.
+Graph: START → analyst → [tools | END]
+                ↑_____________|
 """
 
 from typing import TypedDict, Annotated, Sequence
 
-from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage
+from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import add_messages
@@ -22,31 +17,47 @@ from .tools import ALL_TOOLS
 from ..config import get
 
 
-SYSTEM_PROMPT = """You are the F1 Copilot — an expert Formula 1 performance analyst with deep knowledge of:
-- Aerodynamics, mechanical grip, and car setup
-- Tire compound behaviour and thermal degradation
-- Driver telemetry analysis (speed traces, braking points, throttle application)
-- Race strategy, pit window timing, and undercut/overcut analysis
-- Weather impacts on track evolution and tire choice
+SYSTEM_PROMPT = """You are the F1 Copilot — an elite Formula 1 performance analyst with deep expertise in:
+- Aerodynamics, mechanical grip, and car setup philosophy
+- Tire compound behaviour, thermal degradation, and graining
+- Driver telemetry: speed traces, braking points, throttle application, gear selection
+- Race strategy: pit windows, undercut/overcut, safety car opportunities
+- Weather impacts: track evolution, rubber laying, temperature effects on tire choice
 
-You have access to real-time F1 data tools. When answering questions:
-1. ALWAYS call the relevant tools to pull actual data before answering — never guess lap times or positions.
-2. Use `compare_telemetry` and `get_sector_times` for driver comparisons.
-3. Use `get_tire_data` for strategy and degradation questions.
-4. Use `get_weather` when track conditions are relevant.
-5. Use `search_race_context` to retrieve analyst commentary and race reports.
-6. Synthesize all tool results into a precise, quantified answer — cite actual numbers (seconds, percentages, lap numbers).
+TOOL USAGE RULES — always follow these:
+1. NEVER answer from memory alone — always call the relevant tools first.
+2. For driver comparisons: call BOTH `compare_telemetry` AND `get_sector_times` to pinpoint where time is lost.
+3. For strategy questions: call `get_tire_data` for the specific driver(s) asked about.
+4. For weather questions: call `get_weather` first, then relate conditions to tire/pace impact.
+5. For race overview questions: call `get_race_results` then `search_race_context` for narrative.
+6. For lap pace analysis: call `get_lap_times_series` or `compare_race_pace`.
+7. Always call `search_race_context` as a supplementary tool to enrich answers with analyst context.
 
-When comparing drivers, identify EXACTLY where time is lost: which corners, which sectors, and WHY (braking too late, low minimum speed, understeer, tire deg, etc.)."""
+OUTPUT FORMAT:
+- Lead with the direct answer (1-2 sentences)
+- Then explain the data: cite exact lap times, sector deltas in milliseconds, tire compounds, temperatures
+- Identify the root cause: don't just say "Norris was slower", say WHY — corner speed, braking point, tire temp, etc.
+- End with a strategic insight or "so what" conclusion"""
 
 
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
 
+def _history_to_lc(history: list[dict]) -> list[BaseMessage]:
+    """Convert UI message dicts to LangChain message objects for memory."""
+    result = []
+    for msg in history:
+        if msg["role"] == "user":
+            result.append(HumanMessage(content=msg["content"]))
+        elif msg["role"] == "assistant" and msg.get("content"):
+            result.append(AIMessage(content=msg["content"]))
+    return result
+
+
 def build_agent():
     llm = ChatOpenAI(
-        model=get("OPENAI_MODEL", "gpt-4o"),
+        model=get("OPENAI_MODEL", "gpt-4o-mini"),
         api_key=get("OPENAI_API_KEY"),
         temperature=0,
         streaming=True,
@@ -69,7 +80,6 @@ def build_agent():
     graph = StateGraph(AgentState)
     graph.add_node("analyst", analyst_node)
     graph.add_node("tools", tool_node)
-
     graph.set_entry_point("analyst")
     graph.add_conditional_edges("analyst", should_continue, {"tools": "tools", END: END})
     graph.add_edge("tools", "analyst")
@@ -77,16 +87,9 @@ def build_agent():
     return graph.compile()
 
 
-def run_query(question: str, history: list | None = None) -> dict:
-    """
-    Run a user question through the F1 agent.
-    Returns {"answer": str, "tool_calls": list, "messages": list}
-    """
+def run_query(question: str, history: list[dict] | None = None) -> dict:
     agent = build_agent()
-
-    messages = list(history or [])
-    messages.append(HumanMessage(content=question))
-
+    messages = _history_to_lc(history or []) + [HumanMessage(content=question)]
     result = agent.invoke({"messages": messages})
 
     final_answer = ""
@@ -95,29 +98,17 @@ def run_query(question: str, history: list | None = None) -> dict:
     for msg in result["messages"]:
         if hasattr(msg, "tool_calls") and msg.tool_calls:
             for tc in msg.tool_calls:
-                tool_calls_made.append({
-                    "tool": tc["name"],
-                    "args": tc["args"],
-                })
-        elif hasattr(msg, "content") and msg.content and not getattr(msg, "tool_calls", None):
-            if hasattr(msg, "type") and msg.type == "ai":
-                final_answer = msg.content
+                tool_calls_made.append({"tool": tc["name"], "args": tc["args"]})
+        elif hasattr(msg, "type") and msg.type == "ai" and msg.content and not getattr(msg, "tool_calls", None):
+            final_answer = msg.content
 
-    return {
-        "answer": final_answer,
-        "tool_calls": tool_calls_made,
-        "messages": result["messages"],
-    }
+    return {"answer": final_answer, "tool_calls": tool_calls_made, "messages": result["messages"]}
 
 
-def stream_query(question: str, history: list | None = None):
-    """
-    Stream the agent's response. Yields dicts with type='token'|'tool_call'|'done'.
-    """
+def stream_query(question: str, history: list[dict] | None = None):
+    """Stream agent events. Yields dicts: type='tool_call'|'answer'|'done'."""
     agent = build_agent()
-
-    messages = list(history or [])
-    messages.append(HumanMessage(content=question))
+    messages = _history_to_lc(history or []) + [HumanMessage(content=question)]
 
     for event in agent.stream({"messages": messages}, stream_mode="values"):
         last_msg = event["messages"][-1]
@@ -126,8 +117,12 @@ def stream_query(question: str, history: list | None = None):
             for tc in last_msg.tool_calls:
                 yield {"type": "tool_call", "tool": tc["name"], "args": tc["args"]}
 
-        elif hasattr(last_msg, "content") and last_msg.content:
-            if hasattr(last_msg, "type") and last_msg.type == "ai" and not getattr(last_msg, "tool_calls", None):
-                yield {"type": "answer", "content": last_msg.content}
+        elif (
+            hasattr(last_msg, "type")
+            and last_msg.type == "ai"
+            and last_msg.content
+            and not getattr(last_msg, "tool_calls", None)
+        ):
+            yield {"type": "answer", "content": last_msg.content}
 
     yield {"type": "done"}

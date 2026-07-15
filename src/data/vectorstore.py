@@ -1,42 +1,27 @@
-"""Qdrant Cloud vector store for race reports, context, and session summaries."""
+"""Pinecone vector store for race reports, context, and session summaries."""
 
-import uuid
+import hashlib
 from typing import Optional
 
 from openai import OpenAI
-from qdrant_client import QdrantClient
+from pinecone import Pinecone, ServerlessSpec
 from ..config import get
-from qdrant_client.models import (
-    Distance,
-    VectorParams,
-    PointStruct,
-    Filter,
-    FieldCondition,
-    MatchValue,
-)
 
-COLLECTION_NAME = "f1_race_context"
+INDEX_NAME = "f1-race-context"
 VECTOR_DIM = 1536  # text-embedding-3-small
 
 
-def _get_client() -> QdrantClient:
-    url = get("QDRANT_URL")
-    api_key = get("QDRANT_API_KEY")
-    if not url or not api_key:
-        raise ValueError(
-            "QDRANT_URL and QDRANT_API_KEY must be set. "
-            "Get a free cluster at cloud.qdrant.io"
+def _get_index():
+    pc = Pinecone(api_key=get("PINECONE_API_KEY"))
+    existing = [i.name for i in pc.list_indexes()]
+    if INDEX_NAME not in existing:
+        pc.create_index(
+            name=INDEX_NAME,
+            dimension=VECTOR_DIM,
+            metric="cosine",
+            spec=ServerlessSpec(cloud="aws", region="us-east-1"),
         )
-    return QdrantClient(url=url, api_key=api_key)
-
-
-def _ensure_collection(client: QdrantClient) -> None:
-    existing = [c.name for c in client.get_collections().collections]
-    if COLLECTION_NAME not in existing:
-        client.create_collection(
-            collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=VECTOR_DIM, distance=Distance.COSINE),
-        )
+    return pc.Index(INDEX_NAME)
 
 
 def _embed(texts: list[str]) -> list[list[float]]:
@@ -48,65 +33,59 @@ def _embed(texts: list[str]) -> list[list[float]]:
     return [item.embedding for item in response.data]
 
 
+def _make_id(doc_id: str, chunk_index: int) -> str:
+    raw = f"{doc_id}_chunk_{chunk_index}"
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
 def ingest_document(
     text: str,
     doc_id: str,
     metadata: Optional[dict] = None,
 ) -> None:
-    """Chunk, embed, and upsert a document into Qdrant."""
-    client = _get_client()
-    _ensure_collection(client)
-
+    """Chunk, embed, and upsert a document into Pinecone."""
+    index = _get_index()
     chunks = _chunk_text(text, chunk_size=800, overlap=100)
     embeddings = _embed(chunks)
 
-    points = [
-        PointStruct(
-            id=str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{doc_id}_chunk_{i}")),
-            vector=embeddings[i],
-            payload={
+    vectors = [
+        {
+            "id": _make_id(doc_id, i),
+            "values": embeddings[i],
+            "metadata": {
                 **(metadata or {}),
                 "text": chunks[i],
                 "doc_id": doc_id,
                 "chunk_index": i,
             },
-        )
+        }
         for i in range(len(chunks))
     ]
 
-    client.upsert(collection_name=COLLECTION_NAME, points=points)
+    # Pinecone recommends batches of 100
+    for batch_start in range(0, len(vectors), 100):
+        index.upsert(vectors=vectors[batch_start:batch_start + 100])
 
 
 def search(query: str, n_results: int = 5, filter_meta: Optional[dict] = None) -> list[dict]:
     """Semantic search over ingested race context."""
-    client = _get_client()
-    _ensure_collection(client)
-
+    index = _get_index()
     query_vector = _embed([query])[0]
 
-    qdrant_filter = None
-    if filter_meta:
-        conditions = [
-            FieldCondition(key=k, match=MatchValue(value=v))
-            for k, v in filter_meta.items()
-        ]
-        qdrant_filter = Filter(must=conditions)
-
-    hits = client.search(
-        collection_name=COLLECTION_NAME,
-        query_vector=query_vector,
-        limit=n_results,
-        query_filter=qdrant_filter,
-        with_payload=True,
+    results = index.query(
+        vector=query_vector,
+        top_k=n_results,
+        include_metadata=True,
+        filter=filter_meta or None,
     )
 
     return [
         {
-            "text": hit.payload.get("text", ""),
-            "metadata": {k: v for k, v in hit.payload.items() if k != "text"},
-            "score": hit.score,
+            "text": match.metadata.get("text", ""),
+            "metadata": {k: v for k, v in match.metadata.items() if k != "text"},
+            "score": match.score,
         }
-        for hit in hits
+        for match in results.matches
     ]
 
 
@@ -130,13 +109,12 @@ def ingest_session_summary(
 
 
 def get_collection_stats() -> dict:
-    client = _get_client()
-    _ensure_collection(client)
-    info = client.get_collection(COLLECTION_NAME)
+    index = _get_index()
+    stats = index.describe_index_stats()
     return {
-        "total_vectors": info.vectors_count,
-        "collection": COLLECTION_NAME,
-        "status": str(info.status),
+        "total_vectors": stats.total_vector_count,
+        "collection": INDEX_NAME,
+        "dimension": VECTOR_DIM,
     }
 
 

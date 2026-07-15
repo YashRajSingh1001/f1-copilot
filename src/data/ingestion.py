@@ -10,7 +10,7 @@ from ..config import get
 def _llm_summarize(prompt: str) -> str:
     client = OpenAI(api_key=get("OPENAI_API_KEY"))
     response = client.chat.completions.create(
-        model=get("OPENAI_MODEL", "gpt-4o"),
+        model=get("OPENAI_MODEL", "gpt-4o-mini"),
         messages=[{"role": "user", "content": prompt}],
         temperature=0,
         max_completion_tokens=1000,
