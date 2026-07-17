@@ -30,16 +30,14 @@ def ingest_race_session(year: int, grand_prix: str, session_type: str = "R") -> 
     session = ff1.load_session_basic(year, grand_prix, session_type)
 
     results = ff1.get_race_results(session)
-    weather = ff1.get_session_weather(session)
 
     raw_data = {
         "event": f"{year} {grand_prix} {session_type}",
         "results": results,
-        "weather": weather,
     }
 
     prompt = f"""You are an expert F1 analyst. Generate a detailed, factual race summary based on the data below.
-Include: race winner, key battles, tire strategies used, weather impact, notable incidents, and performance insights.
+Include: race winner, top 5 finishers, points scored, team performance, and any notable observations from the results.
 Write in a factual, technical tone suitable for a racing engineer. 400-600 words.
 
 DATA:
