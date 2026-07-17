@@ -20,8 +20,14 @@ def _ensure_cache():
         cache_path.mkdir(parents=True, exist_ok=True)
         fastf1.Cache.enable_cache(str(cache_path))
     except Exception:
-        fastf1.Cache.enable_cache("/tmp/f1_cache")
+        try:
+            Path("/tmp/f1_cache").mkdir(parents=True, exist_ok=True)
+            fastf1.Cache.enable_cache("/tmp/f1_cache")
+        except Exception:
+            pass
     _cache_enabled = True
+    # Give Streamlit Cloud more time for large downloads
+    fastf1.set_log_level("WARNING")
 
 
 def load_session(year: int, grand_prix: str, session_type: str = "R") -> fastf1.core.Session:
