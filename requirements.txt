@@ -6,7 +6,7 @@ langchain-community>=0.2.0
 langgraph>=0.1.0
 
 # F1 Data
-fastf1>=3.3.0
+fastf1==3.8.3
 requests>=2.31.0
 
 # Vector Store (Pinecone — free serverless tier, no expiry)
