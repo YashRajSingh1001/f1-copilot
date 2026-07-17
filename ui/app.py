@@ -276,6 +276,43 @@ with st.sidebar:
 
     st.divider()
 
+    # Debug tool
+    if st.button("🔧 Debug FastF1", use_container_width=True):
+        import fastf1
+        st.write(f"FastF1 version: `{fastf1.__version__}`")
+        try:
+            from pathlib import Path
+            Path("/tmp/f1_cache").mkdir(parents=True, exist_ok=True)
+            fastf1.Cache.enable_cache("/tmp/f1_cache")
+            st.success("Step 1: Cache OK")
+        except Exception as e:
+            st.error(f"Step 1 FAIL: {e}")
+        try:
+            session = fastf1.get_session(2024, "Bahrain", "R")
+            st.success("Step 2: Session object created")
+        except Exception as e:
+            st.error(f"Step 2 FAIL: {e}")
+            st.stop()
+        try:
+            session.load(laps=True, telemetry=False, weather=True, messages=False)
+            st.success("Step 3: session.load() complete")
+        except Exception as e:
+            st.error(f"Step 3 FAIL: {e}")
+            st.code(traceback.format_exc())
+            st.stop()
+        try:
+            r = len(session.results)
+            st.success(f"Step 4: Results loaded — {r} drivers")
+        except Exception as e:
+            st.error(f"Step 4 FAIL: {e}")
+        try:
+            l = len(session.laps)
+            st.success(f"Step 5: Laps loaded — {l} laps")
+        except Exception as e:
+            st.error(f"Step 5 FAIL: {e}")
+
+    st.divider()
+
     # KB stats
     col_a, col_b = st.columns(2)
     with col_a:
