@@ -32,16 +32,10 @@ def ingest_race_session(year: int, grand_prix: str, session_type: str = "R") -> 
     results = ff1.get_race_results(session)
     weather = ff1.get_session_weather(session)
 
-    driver_codes = [r["driver"] for r in results.get("results", [])[:5]]
-    tire_summaries = {}
-    for drv in driver_codes:
-        tire_summaries[drv] = ff1.get_tire_strategy(session, drv)
-
     raw_data = {
         "event": f"{year} {grand_prix} {session_type}",
         "results": results,
         "weather": weather,
-        "tire_strategies": tire_summaries,
     }
 
     prompt = f"""You are an expert F1 analyst. Generate a detailed, factual race summary based on the data below.
