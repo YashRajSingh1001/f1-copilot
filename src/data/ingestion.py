@@ -27,7 +27,7 @@ def ingest_race_session(year: int, grand_prix: str, session_type: str = "R") -> 
     Returns the generated summary.
     """
     print(f"Loading session: {year} {grand_prix} {session_type}...")
-    session = ff1.load_session(year, grand_prix, session_type)
+    session = ff1.load_session_basic(year, grand_prix, session_type)
 
     results = ff1.get_race_results(session)
     weather = ff1.get_session_weather(session)

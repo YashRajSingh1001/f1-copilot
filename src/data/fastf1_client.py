@@ -25,10 +25,18 @@ def _ensure_cache():
 
 
 def load_session(year: int, grand_prix: str, session_type: str = "R") -> fastf1.core.Session:
-    """Load an F1 session. session_type: R=Race, Q=Qualifying, FP1/FP2/FP3=Practice."""
+    """Full session load including telemetry — used by agent tools."""
     _ensure_cache()
     session = fastf1.get_session(year, grand_prix, session_type)
-    session.load(laps=True, telemetry=True, weather=True, messages=True)
+    session.load(laps=True, telemetry=True, weather=True, messages=False)
+    return session
+
+
+def load_session_basic(year: int, grand_prix: str, session_type: str = "R") -> fastf1.core.Session:
+    """Lightweight session load — no telemetry. Used by ingestion pipeline."""
+    _ensure_cache()
+    session = fastf1.get_session(year, grand_prix, session_type)
+    session.load(laps=True, telemetry=False, weather=True, messages=False)
     return session
 
 
