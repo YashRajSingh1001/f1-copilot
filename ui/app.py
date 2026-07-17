@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import re
 import json
+import traceback
 import streamlit as st
 
 try:
@@ -271,6 +272,7 @@ with st.sidebar:
                         st.write(summary)
                 except Exception as e:
                     st.error(str(e))
+                    st.code(traceback.format_exc())
 
     st.divider()
 
