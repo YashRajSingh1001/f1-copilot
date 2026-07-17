@@ -8,17 +8,25 @@ from typing import Optional
 from ..config import get
 
 
-def _setup_cache():
-    cache_path = Path(get("FASTF1_CACHE_PATH", "/tmp/f1_cache"))
-    cache_path.mkdir(exist_ok=True)
-    fastf1.Cache.enable_cache(str(cache_path))
+_cache_enabled = False
 
 
-_setup_cache()
+def _ensure_cache():
+    global _cache_enabled
+    if _cache_enabled:
+        return
+    try:
+        cache_path = Path(get("FASTF1_CACHE_PATH", "/tmp/f1_cache"))
+        cache_path.mkdir(parents=True, exist_ok=True)
+        fastf1.Cache.enable_cache(str(cache_path))
+    except Exception:
+        fastf1.Cache.enable_cache("/tmp/f1_cache")
+    _cache_enabled = True
 
 
 def load_session(year: int, grand_prix: str, session_type: str = "R") -> fastf1.core.Session:
     """Load an F1 session. session_type: R=Race, Q=Qualifying, FP1/FP2/FP3=Practice."""
+    _ensure_cache()
     session = fastf1.get_session(year, grand_prix, session_type)
     session.load(laps=True, telemetry=True, weather=True, messages=True)
     return session
