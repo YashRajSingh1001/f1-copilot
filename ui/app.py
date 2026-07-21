@@ -43,6 +43,16 @@ F1_GPS = [
     "Silverstone", "Monza",
 ]
 
+SESSION_TYPES = {
+    "Race": "R",
+    "Qualifying": "Q",
+    "Practice 1": "FP1",
+    "Practice 2": "FP2",
+    "Practice 3": "FP3",
+    "Sprint": "S",
+    "Sprint Qualifying": "SQ",
+}
+
 TOOL_META = {
     "get_telemetry":       ("📡", "Pulling lap telemetry"),
     "compare_telemetry":   ("⚖️", "Comparing driver telemetry"),
@@ -254,22 +264,20 @@ with st.sidebar:
     st.divider()
 
     st.markdown("### Ingest Race into RAG")
-    c1, c2 = st.columns(2)
-    with c1:
-        ingest_year = st.number_input("Year", 2018, 2025, 2024, step=1, label_visibility="visible")
-    with c2:
-        ingest_stype = st.selectbox("Session", ["R", "Q", "FP1", "FP2", "FP3"])
-    ingest_gp = st.text_input("Grand Prix", placeholder="e.g. Bahrain")
+    ingest_year = st.number_input("Year", 2018, 2025, 2024, step=1, label_visibility="visible")
+    ingest_stype_label = st.selectbox("Session", list(SESSION_TYPES.keys()))
+    ingest_stype = SESSION_TYPES[ingest_stype_label]
+    ingest_gp = st.selectbox("Grand Prix", F1_GPS, index=None, placeholder="Select a Grand Prix")
 
     if st.button("Pull & Ingest", type="primary", use_container_width=True):
-        if not ingest_gp.strip():
-            st.warning("Enter a Grand Prix name.")
+        if not ingest_gp:
+            st.warning("Select a Grand Prix.")
         else:
             with st.spinner(f"Loading {ingest_year} {ingest_gp}..."):
                 try:
-                    summary = ingest_race_session(int(ingest_year), ingest_gp.strip(), ingest_stype)
-                    st.session_state.ingested_races.add(race_key(int(ingest_year), ingest_gp.strip()))
-                    st.session_state.current_race = (int(ingest_year), ingest_gp.strip())
+                    summary = ingest_race_session(int(ingest_year), ingest_gp, ingest_stype)
+                    st.session_state.ingested_races.add(race_key(int(ingest_year), ingest_gp))
+                    st.session_state.current_race = (int(ingest_year), ingest_gp)
                     st.success("Ingested!")
                     with st.expander("Summary"):
                         st.write(summary)
