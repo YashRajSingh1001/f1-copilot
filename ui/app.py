@@ -103,6 +103,7 @@ for key, default in [
     ("tool_log", []),
     ("charts_per_turn", {}),
     ("ingested_races", set()),
+    ("current_race", None),
     ("turn_count", 0),
 ]:
     if key not in st.session_state:
@@ -268,6 +269,7 @@ with st.sidebar:
                 try:
                     summary = ingest_race_session(int(ingest_year), ingest_gp.strip(), ingest_stype)
                     st.session_state.ingested_races.add(race_key(int(ingest_year), ingest_gp.strip()))
+                    st.session_state.current_race = (int(ingest_year), ingest_gp.strip())
                     st.success("Ingested!")
                     with st.expander("Summary"):
                         st.write(summary)
@@ -397,6 +399,19 @@ with chat_col:
         # Auto-ingest detection
         auto_race = maybe_auto_ingest(user_input)
 
+        # Track/reuse race context: if the question names a race, remember it;
+        # otherwise fall back to the last ingested/discussed race.
+        detected = detect_race(user_input)
+        if detected:
+            st.session_state.current_race = detected
+
+        query_for_agent = user_input
+        if not detected and st.session_state.current_race:
+            ctx_year, ctx_gp = st.session_state.current_race
+            query_for_agent = (
+                f"(Context: currently discussing the {ctx_year} {ctx_gp} Grand Prix.) {user_input}"
+            )
+
         st.session_state.messages.append({"role": "user", "content": user_input})
         with st.chat_message("user", avatar="👤"):
             st.markdown(user_input)
@@ -411,6 +426,7 @@ with chat_col:
                     yr_str, gp_str = auto_race.split(" ", 1)
                     ingest_race_session(int(yr_str), gp_str, "R")
                     st.session_state.ingested_races.add(race_key(int(yr_str), gp_str))
+                    st.session_state.current_race = (int(yr_str), gp_str)
                     ingest_slot.success(f"{auto_race} ingested into RAG ✓")
                 except Exception:
                     ingest_slot.empty()
@@ -422,7 +438,7 @@ with chat_col:
             turn_tool_calls: list[dict] = []
             final_answer = ""
 
-            for event in stream_query(user_input, history=st.session_state.messages[:-1]):
+            for event in stream_query(query_for_agent, history=st.session_state.messages[:-1]):
                 if event["type"] == "tool_call":
                     tool_name = event["tool"]
                     active_tools.append(tool_name)
