@@ -24,6 +24,11 @@ def get_cached_session(year: int, grand_prix: str, session_type: str = "R"):
     return _get_session(year, grand_prix, session_type)
 
 
+def peek_cached_session(year: int, grand_prix: str, session_type: str = "R"):
+    """Return an already-loaded session without triggering a new (slow) load, or None."""
+    return _session_cache.get(f"{year}_{grand_prix}_{session_type}")
+
+
 @tool
 def get_telemetry(
     year: Annotated[int, "Season year, e.g. 2024"],

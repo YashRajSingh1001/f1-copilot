@@ -4,25 +4,25 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 COMPOUND_COLORS = {
-    "SOFT": "#e8002d",
-    "MEDIUM": "#ffd700",
-    "HARD": "#ececec",
-    "INTERMEDIATE": "#39b54a",
+    "SOFT": "#ff1e2d",
+    "MEDIUM": "#ffd400",
+    "HARD": "#e8e8e8",
+    "INTERMEDIATE": "#2ee6a6",
     "WET": "#0067ff",
-    "UNKNOWN": "#888888",
+    "UNKNOWN": "#8d9096",
 }
 
-DRIVER_PALETTE = ["#e8002d", "#00d2be", "#ff8000", "#0090ff", "#ffcd34", "#dc0000"]
+DRIVER_PALETTE = ["#ff1e2d", "#3671c6", "#ff8000", "#2ee6a6", "#b026ff", "#ffd400"]
 
 _BASE = dict(
     paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="#141414",
-    font=dict(color="#f0f0f0", family="monospace", size=12),
-    margin=dict(l=50, r=20, t=40, b=40),
-    legend=dict(bgcolor="rgba(0,0,0,0)", bordercolor="#333"),
+    plot_bgcolor="#101114",
+    font=dict(color="#c2c4c8", family="JetBrains Mono, monospace", size=12),
+    margin=dict(l=50, r=20, t=20, b=40),
+    legend=dict(bgcolor="rgba(0,0,0,0)", bordercolor="#2a2c31"),
 )
 
-_AXIS = dict(gridcolor="#2a2a2a", linecolor="#3a3a3a", zerolinecolor="#3a3a3a")
+_AXIS = dict(gridcolor="#2a2c31", linecolor="#2a2c31", zerolinecolor="#2a2c31")
 
 
 def speed_trace_chart(comparison_data: dict) -> go.Figure:
@@ -50,13 +50,9 @@ def speed_trace_chart(comparison_data: dict) -> go.Figure:
 
     fig.update_layout(
         **_BASE,
-        title=dict(
-            text=f"Speed Trace — {driver_a} vs {driver_b}  |  Gap: {gap}s  |  Faster: {faster}",
-            font=dict(color="#e8002d", size=14),
-        ),
         xaxis=dict(title="Distance (m)", **_AXIS),
         yaxis=dict(title="Speed (km/h)", **_AXIS),
-        height=320,
+        height=280,
     )
     return fig
 
@@ -70,7 +66,7 @@ def sector_delta_chart(sector_data: dict) -> go.Figure:
     labels = ["Sector 1", "Sector 2", "Sector 3"]
     keys = ["s1_delta_ms", "s2_delta_ms", "s3_delta_ms"]
     values = [deltas.get(k, 0) for k in keys]
-    colors = ["#e8002d" if v > 0 else "#00d2be" for v in values]
+    colors = ["#ff1e2d" if v > 0 else "#2ee6a6" for v in values]
 
     fig = go.Figure(go.Bar(
         x=values,
@@ -84,15 +80,11 @@ def sector_delta_chart(sector_data: dict) -> go.Figure:
 
     fig.update_layout(
         **_BASE,
-        title=dict(
-            text=f"Sector Deltas — {driver_a} vs {driver_b}  (negative = {driver_a} faster)",
-            font=dict(color="#e8002d", size=14),
-        ),
         xaxis=dict(title="Delta (ms)", **_AXIS),
         yaxis=dict(**_AXIS),
-        height=250,
+        height=220,
         shapes=[dict(type="line", x0=0, x1=0, y0=-0.5, y1=2.5,
-                     line=dict(color="#666", width=1, dash="dash"))],
+                     line=dict(color="#6f7278", width=1, dash="dash"))],
     )
     return fig
 
@@ -124,10 +116,9 @@ def lap_time_chart(lap_data: dict) -> go.Figure:
 
     fig.update_layout(
         **_BASE,
-        title=dict(text=f"Lap Time Progression — {driver}", font=dict(color="#e8002d", size=14)),
         xaxis=dict(title="Lap", **_AXIS),
         yaxis=dict(title="Lap Time (s)", **_AXIS, autorange="reversed"),
-        height=300,
+        height=260,
     )
     return fig
 
@@ -154,10 +145,9 @@ def multi_driver_pace_chart(pace_data: dict) -> go.Figure:
 
     fig.update_layout(
         **_BASE,
-        title=dict(text="Race Pace Comparison", font=dict(color="#e8002d", size=14)),
         xaxis=dict(title="Lap", **_AXIS),
         yaxis=dict(title="Lap Time (s)", **_AXIS, autorange="reversed"),
-        height=320,
+        height=280,
     )
     return fig
 
@@ -178,7 +168,7 @@ def tire_strategy_chart(strategy_data: dict) -> go.Figure:
             base=[stint["start_lap"] - 1],
             orientation="h",
             name=compound,
-            marker_color=COMPOUND_COLORS.get(compound, "#888"),
+            marker_color=COMPOUND_COLORS.get(compound, "#8d9096"),
             text=f"{compound} ({stint['laps']} laps)",
             textposition="inside",
             hovertemplate=(
@@ -192,11 +182,10 @@ def tire_strategy_chart(strategy_data: dict) -> go.Figure:
 
     fig.update_layout(
         **_BASE,
-        title=dict(text=f"Tire Strategy — {driver}", font=dict(color="#e8002d", size=14)),
         xaxis=dict(title="Lap", **_AXIS),
         yaxis=dict(**_AXIS),
         barmode="stack",
-        height=180,
+        height=140,
     )
     return fig
 
@@ -213,20 +202,20 @@ def weather_chart(weather_data: dict) -> go.Figure:
             mode="gauge+number",
             value=value,
             gauge=dict(
-                axis=dict(range=[min_v, max_v], tickcolor="#888"),
+                axis=dict(range=[min_v, max_v], tickcolor="#8d9096"),
                 bar=dict(color=color),
-                bgcolor="#1a1a1a",
-                bordercolor="#333",
+                bgcolor="#16181c",
+                bordercolor="#2a2c31",
             ),
-            number=dict(font=dict(color="#f0f0f0")),
+            number=dict(font=dict(color="#f4f5f6")),
         ), row=row, col=col)
 
     air = weather_data.get("air_temp_c", {})
     trk = weather_data.get("track_temp_c", {})
 
     _add_gauge(1, 1, air.get("avg", 0), 10, 50, "#ff8000")
-    _add_gauge(1, 2, trk.get("avg", 0), 15, 65, "#e8002d")
-    _add_gauge(1, 3, weather_data.get("humidity_pct", 0), 0, 100, "#0090ff")
+    _add_gauge(1, 2, trk.get("avg", 0), 15, 65, "#ff1e2d")
+    _add_gauge(1, 3, weather_data.get("humidity_pct", 0), 0, 100, "#3671c6")
 
     fig.update_layout(**_BASE, height=200, showlegend=False)
     return fig
