@@ -11,6 +11,7 @@ import re
 import json
 import traceback
 import streamlit as st
+from typing import Optional, Tuple
 
 try:
     from dotenv import load_dotenv
@@ -109,7 +110,7 @@ for key, default in [
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-def detect_race(question: str) -> tuple[int, str] | None:
+def detect_race(question: str) -> Optional[Tuple[int, str]]:
     year_match = re.search(r"\b(20\d{2})\b", question)
     if not year_match:
         return None
@@ -125,7 +126,7 @@ def race_key(year: int, gp: str) -> str:
     return f"{year}_{gp}_R"
 
 
-def maybe_auto_ingest(question: str) -> str | None:
+def maybe_auto_ingest(question: str) -> Optional[str]:
     """If the question mentions a race not yet in session cache, auto-ingest it."""
     detected = detect_race(question)
     if not detected:

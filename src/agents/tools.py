@@ -156,24 +156,27 @@ def get_race_results(
 
 @tool
 def search_race_context(
+    year: Annotated[int, "Season year, e.g. 2024"],
+    grand_prix: Annotated[str, "Grand Prix name, e.g. 'Bahrain'"],
     query: Annotated[str, "Natural language query about F1 races, drivers, or strategies"],
     n_results: Annotated[int, "Number of context chunks to retrieve"] = 4,
 ) -> str:
     """
-    RAG search over ingested race reports, summaries, and articles.
+    RAG search over ingested race reports, summaries, and articles for a specific race.
     Use this for narrative context, historical comparisons, and analyst commentary.
-    Gracefully returns empty if knowledge base has no relevant data.
+    Gracefully returns empty if knowledge base has no relevant data for this race.
     """
     try:
-        results = search(query, n_results=n_results)
+        filter_meta = {"year": year, "grand_prix": grand_prix}
+        results = search(query, n_results=n_results, filter_meta=filter_meta)
         if not results:
-            return json.dumps({"message": "No relevant context found in knowledge base — rely on live telemetry tools."})
+            return json.dumps({"message": f"No context found for {year} {grand_prix} — rely on live telemetry tools."})
         return json.dumps(
             [{"text": r["text"], "source": r["metadata"]} for r in results],
             indent=2,
         )
-    except Exception:
-        return json.dumps({"message": "Knowledge base unavailable — using live telemetry tools only."})
+    except Exception as e:
+        return json.dumps({"message": f"Knowledge base search failed ({str(e)}) — using live telemetry tools only."})
 
 
 ALL_TOOLS = [

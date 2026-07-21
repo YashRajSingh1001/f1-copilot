@@ -5,7 +5,7 @@ Graph: START → analyst → [tools | END]
                 ↑_____________|
 """
 
-from typing import TypedDict, Annotated, Sequence
+from typing import TypedDict, Annotated, Sequence, Optional
 
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from langchain_openai import ChatOpenAI
@@ -29,9 +29,10 @@ TOOL USAGE RULES — always follow these:
 2. For driver comparisons: call BOTH `compare_telemetry` AND `get_sector_times` to pinpoint where time is lost.
 3. For strategy questions: call `get_tire_data` for the specific driver(s) asked about.
 4. For weather questions: call `get_weather` first, then relate conditions to tire/pace impact.
-5. For race overview questions: call `get_race_results` then `search_race_context` for narrative.
+5. For race overview questions: call `get_race_results` then `search_race_context` (with year and grand_prix) for narrative.
 6. For lap pace analysis: call `get_lap_times_series` or `compare_race_pace`.
-7. Always call `search_race_context` as a supplementary tool to enrich answers with analyst context.
+7. Always call `search_race_context` with the CORRECT year and grand_prix — if the user mentions a race, extract those details and pass them.
+8. If no year mentioned, assume 2024. If no race mentioned, ask for clarification via context.
 
 OUTPUT FORMAT:
 - Lead with the direct answer (1-2 sentences)
@@ -87,7 +88,7 @@ def build_agent():
     return graph.compile()
 
 
-def run_query(question: str, history: list[dict] | None = None) -> dict:
+def run_query(question: str, history: Optional[list[dict]] = None) -> dict:
     agent = build_agent()
     messages = _history_to_lc(history or []) + [HumanMessage(content=question)]
     result = agent.invoke({"messages": messages})
@@ -105,7 +106,7 @@ def run_query(question: str, history: list[dict] | None = None) -> dict:
     return {"answer": final_answer, "tool_calls": tool_calls_made, "messages": result["messages"]}
 
 
-def stream_query(question: str, history: list[dict] | None = None):
+def stream_query(question: str, history: Optional[list[dict]] = None):
     """Stream agent events. Yields dicts: type='tool_call'|'answer'|'done'."""
     agent = build_agent()
     messages = _history_to_lc(history or []) + [HumanMessage(content=question)]

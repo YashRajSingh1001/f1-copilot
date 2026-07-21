@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "f1-copilot",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "streamlit", "run", "ui/app.py"],
+      "port": 8501
+    }
+  ],
+  "autoVerify": false
+}
