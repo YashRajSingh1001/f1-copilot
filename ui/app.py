@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import re
 import json
 import traceback
+from datetime import date
 import streamlit as st
 from typing import Optional, Tuple
 
@@ -21,7 +22,7 @@ except ImportError:
 
 from src.agents.f1_agent import stream_query
 from src.data.ingestion import ingest_race_session
-from src.data.vectorstore import get_collection_stats
+from src.data.vectorstore import get_collection_stats, get_last_ingested_session
 from src.agents.tools import get_cached_session, peek_cached_session
 from src.data import fastf1_client as ff1
 from ui.charts import (
@@ -268,6 +269,23 @@ def _refresh_kb_stats():
 
 if st.session_state.kb_chunks_count is None:
     _refresh_kb_stats()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _last_ingested_session_cached() -> Optional[dict]:
+    try:
+        return get_last_ingested_session()
+    except Exception:
+        return None
+
+
+if st.session_state.current_race is None:
+    last_session = _last_ingested_session_cached()
+    if last_session and last_session.get("year") and last_session.get("grand_prix"):
+        st.session_state.current_race = (int(last_session["year"]), last_session["grand_prix"])
+        st.session_state.ingested_races.add(
+            f"{int(last_session['year'])}_{last_session['grand_prix']}_R"
+        )
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -541,7 +559,8 @@ with st.sidebar:
 
     # Ingest form
     st.markdown('<div class="f1-mono-label">Ingest a race</div>', unsafe_allow_html=True)
-    ingest_year = st.number_input("Year", 2018, 2025, 2024, step=1, label_visibility="collapsed")
+    current_year = date.today().year
+    ingest_year = st.number_input("Year", 2018, current_year, current_year, step=1, label_visibility="collapsed")
     ingest_stype_label = st.selectbox("Session", list(SESSION_TYPES.keys()), label_visibility="collapsed")
     ingest_stype = SESSION_TYPES[ingest_stype_label]
     ingest_gp = st.selectbox("Grand Prix", F1_GPS, index=None, placeholder="Grand Prix", label_visibility="collapsed")
@@ -553,7 +572,8 @@ with st.sidebar:
             with st.spinner(f"Loading {ingest_year} {ingest_gp}..."):
                 try:
                     summary = ingest_race_session(int(ingest_year), ingest_gp, ingest_stype)
-                    st.session_state.ingested_races.add(race_key(int(ingest_year), ingest_gp))
+                    # Pinecone was cleared before this write, so it only holds this race now.
+                    st.session_state.ingested_races = {race_key(int(ingest_year), ingest_gp)}
                     st.session_state.current_race = (int(ingest_year), ingest_gp)
                     _refresh_kb_stats()
                     st.success("Ingested!")
@@ -714,7 +734,8 @@ if user_input:
             try:
                 yr_str, gp_str = auto_race.split(" ", 1)
                 ingest_race_session(int(yr_str), gp_str, "R")
-                st.session_state.ingested_races.add(race_key(int(yr_str), gp_str))
+                # Pinecone was cleared before this write, so it only holds this race now.
+                st.session_state.ingested_races = {race_key(int(yr_str), gp_str)}
                 st.session_state.current_race = (int(yr_str), gp_str)
                 _refresh_kb_stats()
                 ingest_slot.success(f"{auto_race} ingested into RAG ✓")

@@ -3,7 +3,7 @@
 import json
 from openai import OpenAI
 from . import fastf1_client as ff1
-from .vectorstore import ingest_session_summary, ingest_document
+from .vectorstore import ingest_session_summary, ingest_document, clear_index
 from ..config import get
 
 
@@ -45,6 +45,10 @@ DATA:
 """
     print("Generating LLM summary...")
     summary = _llm_summarize(prompt)
+
+    # Keep Pinecone lean: only the currently ingested session's data is needed
+    # to answer questions, so drop everything else before writing the new session.
+    clear_index()
 
     ingest_session_summary(
         year=year,

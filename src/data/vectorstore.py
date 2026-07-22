@@ -1,6 +1,7 @@
 """Pinecone vector store for race reports, context, and session summaries."""
 
 import hashlib
+import time
 from typing import Optional
 
 from openai import OpenAI
@@ -104,8 +105,41 @@ def ingest_session_summary(
             "grand_prix": grand_prix,
             "session_type": session_type,
             "type": "session_summary",
+            "ingested_at": time.time(),
         },
     )
+
+
+def clear_index() -> None:
+    """Delete all vectors so only the currently ingested session's data remains."""
+    index = _get_index()
+    try:
+        index.delete(delete_all=True)
+    except Exception:
+        # Serverless indexes raise "Namespace not found" when already empty.
+        pass
+
+
+def get_last_ingested_session() -> Optional[dict]:
+    """Return the most recently ingested session summary's metadata, or None if the store is empty."""
+    index = _get_index()
+    query_vector = _embed(["race session summary"])[0]
+
+    results = index.query(
+        vector=query_vector,
+        top_k=100,
+        include_metadata=True,
+        filter={"type": "session_summary"},
+    )
+    if not results.matches:
+        return None
+
+    latest = max(results.matches, key=lambda m: m.metadata.get("ingested_at", 0))
+    return {
+        "year": latest.metadata.get("year"),
+        "grand_prix": latest.metadata.get("grand_prix"),
+        "session_type": latest.metadata.get("session_type"),
+    }
 
 
 def get_collection_stats() -> dict:
