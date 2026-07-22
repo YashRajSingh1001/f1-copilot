@@ -94,24 +94,30 @@ DRIVER_COLORS = {
 
 
 # ── Page config ───────────────────────────────────────────────────────────────
+_FAVICON = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "favicon.png")
+
 st.set_page_config(
     page_title="F1 Copilot",
-    page_icon="🏎️",
+    page_icon=_FAVICON,
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
 st.markdown("""
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Titillium+Web:ital,wght@0,400;0,600;0,700;0,900;1,700;1,900&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,700;1,900&display=swap">
 <style>
   @keyframes pcpulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"],
+  [data-testid="stMarkdownContainer"], [data-testid="stMarkdownContainer"] *,
+  [data-testid="stMarkdown"], [data-testid="stText"] {
+    font-family: 'Poppins', sans-serif !important;
+  }
   html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {
     background:
       repeating-linear-gradient(135deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 5px),
       radial-gradient(ellipse at top left, rgba(255,30,45,0.06), transparent 55%),
       #0a0a0c !important;
-    font-family: 'Titillium Web', sans-serif;
     color: #f4f5f6;
   }
   [data-testid="stHeader"] { background: transparent; }
@@ -124,7 +130,7 @@ st.markdown("""
   [data-testid="stSidebar"] hr { border-color: #2a2c31 !important; margin: 14px 0 !important; }
   [data-testid="stSidebar"] label p { color: #6f7278 !important; font-size: 11px !important; }
   .f1-mono-label {
-    font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.1em;
+    font-family: 'Poppins', sans-serif; font-size: 11px; letter-spacing: 0.1em;
     text-transform: uppercase; color: #6f7278; margin-bottom: 6px;
   }
   .f1-logo-row { display:flex; align-items:center; gap:10px; margin-bottom: 2px; }
@@ -132,7 +138,7 @@ st.markdown("""
     box-shadow: 0 0 14px rgba(255,30,45,0.5); flex-shrink:0; }
   .f1-logo-word { font-weight:900; font-style:italic; font-size:18px; transform: skewX(-3deg); display:inline-block; }
   .f1-session-name { font-weight:900; font-style:italic; font-size:20px; margin: 2px 0 12px; transform: skewX(-2deg); }
-  .f1-stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; font-family:'JetBrains Mono',monospace; }
+  .f1-stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; font-family:'Poppins',sans-serif; }
   .f1-stat-label { font-size:10px; color:#6f7278; text-transform:uppercase; letter-spacing:0.08em; }
   .f1-stat-value { font-size:14px; font-weight:700; color:#f4f5f6; }
   .f1-example-cat { font-size:11px; font-weight:700; color:#ff1e2d; text-transform:uppercase;
@@ -141,7 +147,7 @@ st.markdown("""
   /* ── Buttons: hard edges everywhere ── */
   .stButton>button, .stDownloadButton>button {
     border-radius: 0 !important;
-    font-family: 'Titillium Web', sans-serif;
+    font-family: 'Poppins', sans-serif;
   }
   .stButton>button[kind="primary"] {
     background: #ff1e2d !important; color: #ffffff !important; border: none !important;
@@ -180,7 +186,7 @@ st.markdown("""
   [data-baseweb="base-input"] {
     background: #16181c !important; border-color: #2a2c31 !important;
     color: #f4f5f6 !important; border-radius: 0 !important;
-    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    font-family: 'Poppins', sans-serif; font-size: 13px;
   }
   [data-testid="stNumberInputContainer"] button { background: #16181c !important; border-color: #2a2c31 !important; }
   ul[data-testid="stSelectboxVirtualDropdown"] { background: #16181c !important; }
@@ -196,11 +202,11 @@ st.markdown("""
     padding: 0 20px; margin: -1rem -1rem 24px -1rem; gap:16px;
   }
   .f1-topbar-left {
-    font-family:'JetBrains Mono',monospace; font-size:12px; color:#8d9096; letter-spacing:0.04em;
+    font-family:'Poppins',sans-serif; font-size:12px; color:#8d9096; letter-spacing:0.04em;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;
   }
   .f1-live-pill {
-    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.06em;
+    font-family:'Poppins',sans-serif; font-size:11px; letter-spacing:0.06em;
     border:1px solid #ff1e2d; color:#ff1e2d; padding:5px 12px;
     display:flex; align-items:center; gap:7px; white-space:nowrap; flex-shrink:0;
   }
@@ -208,7 +214,7 @@ st.markdown("""
     animation: pcpulse 1.6s ease-in-out infinite; flex-shrink:0; }
   /* ── Chat turn text ── */
   .f1-you-label {
-    font-family:'JetBrains Mono',monospace; font-size:11px; text-transform:uppercase;
+    font-family:'Poppins',sans-serif; font-size:11px; text-transform:uppercase;
     color:#6f7278; letter-spacing:0.1em; margin-bottom:2px;
   }
   div[class*="st-key-turn-user-"] [data-testid="stMarkdownContainer"] p {
@@ -218,7 +224,7 @@ st.markdown("""
     font-size:15px; line-height:1.6; color:#eceeef;
   }
   div[class*="st-key-turn-assistant-"] [data-testid="stMarkdownContainer"] code {
-    font-family:'JetBrains Mono',monospace; font-weight:700; color:#f4f5f6;
+    font-family:'Poppins',sans-serif; font-weight:700; color:#f4f5f6;
     background:transparent; padding:0;
   }
   /* ── Tool trace ── */
@@ -226,7 +232,7 @@ st.markdown("""
   .f1-trace-step { display:flex; align-items:center; gap:8px; }
   .f1-trace-num {
     width:24px; height:24px; border:2px solid #ff1e2d; display:flex; align-items:center;
-    justify-content:center; font-family:'JetBrains Mono',monospace; font-size:11px;
+    justify-content:center; font-family:'Poppins',sans-serif; font-size:11px;
     font-weight:800; color:#ff1e2d; flex-shrink:0;
   }
   .f1-trace-label { font-size:12px; font-weight:600; color:#c2c4c8; }
@@ -234,20 +240,32 @@ st.markdown("""
   /* ── Chart card ── */
   .chart-card { background:#101114; border:1px solid #2a2c31; padding:18px; margin: 6px 0 16px; }
   .f1-chart-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
-  .f1-chart-title { font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.06em;
+  .f1-chart-title { font-family:'Poppins',sans-serif; font-size:11px; letter-spacing:0.06em;
     text-transform:uppercase; color:#6f7278; }
   .f1-legend { display:flex; gap:14px; }
-  .f1-legend-item { display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:11px; }
+  .f1-legend-item { display:flex; align-items:center; gap:6px; font-family:'Poppins',sans-serif; font-size:11px; }
   .f1-legend-swatch { width:10px; height:10px; display:inline-block; }
   /* ── Chat input bar ── */
-  [data-testid="stChatInput"] { background: #0d0e10 !important; border-top: 1px solid #2a2c31 !important; }
+  [data-testid="stChatInput"] {
+    background: #0d0e10 !important; border-top: 1px solid #2a2c31 !important;
+    padding: 18px 0 16px !important;
+  }
   [data-testid="stChatInput"] [data-baseweb="textarea"],
   [data-testid="stChatInput"] [data-baseweb="base-input"] {
     background: #16181c !important; border-color: #2a2c31 !important; border-radius: 0 !important;
+    min-height: 52px !important;
   }
-  [data-testid="stChatInputTextArea"] { color: #f4f5f6 !important; font-family: 'Titillium Web', sans-serif !important; }
+  [data-testid="stChatInputTextArea"] {
+    color: #f4f5f6 !important; font-family: 'Poppins', sans-serif !important;
+    padding-top: 14px !important; padding-bottom: 14px !important;
+  }
+  [data-testid="stChatInput"] div:has(> [data-testid="stChatInputSubmitButton"]) {
+    align-items: center !important; align-self: stretch !important;
+  }
   [data-testid="stChatInputSubmitButton"] {
-    background: #ff1e2d !important; border-radius: 0 !important; color: #0a0a0c !important;
+    background: #ff1e2d !important; border-radius: 50% !important; color: #0a0a0c !important;
+    width: 34px !important; height: 34px !important; min-width: 34px !important;
+    margin: 0 8px !important; flex-shrink: 0 !important;
   }
   [data-testid="stChatInputSubmitButton"]:hover { background: #ff444f !important; }
   [data-testid="stChatInputSubmitButton"]:disabled { background: #2a2c31 !important; }
@@ -662,7 +680,7 @@ with st.sidebar:
     st.markdown('<div class="f1-divider"></div>', unsafe_allow_html=True)
     kb_display = st.session_state.kb_chunks_count if st.session_state.kb_chunks_count is not None else "—"
     st.markdown(f"""
-    <div style="display:flex; gap:20px; font-family:'JetBrains Mono',monospace; margin-bottom:12px;">
+    <div style="display:flex; gap:20px; font-family:'Poppins',sans-serif; margin-bottom:12px;">
       <div><div class="f1-stat-label">Questions</div><div style="font-size:19px;font-weight:700;">{st.session_state.turn_count}</div></div>
       <div><div class="f1-stat-label">Tool calls</div><div style="font-size:19px;font-weight:700;">{len(st.session_state.tool_log)}</div></div>
       <div><div class="f1-stat-label">KB chunks</div><div style="font-size:19px;font-weight:700;">{kb_display}</div></div>
@@ -711,7 +729,7 @@ for i, msg in enumerate(st.session_state.messages):
 
 # ── Input ─────────────────────────────────────────────────────────────────────
 pending = st.session_state.pop("pending_question", None)
-user_input = st.chat_input("Ask anything about F1 — races, drivers, strategy, telemetry...") or pending
+user_input = st.chat_input("Ask copilot") or pending
 
 if user_input:
     auto_race = maybe_auto_ingest(user_input)
