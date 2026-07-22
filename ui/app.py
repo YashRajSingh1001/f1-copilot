@@ -159,11 +159,20 @@ st.markdown("""
     box-shadow: 0 0 0 2px rgba(255,30,45,0.4) !important;
   }
   div[class*="st-key-try-asking-block"] .stButton>button:not([kind="primary"]) {
-    text-align: left; justify-content: flex-start; color: #c2c4c8;
+    text-align: left; justify-content: flex-start; color: #9a9da3;
+    font-size: 12px; line-height: 1.45; font-weight: 400;
+    padding: 8px 12px; min-height: 0; white-space: normal;
+  }
+  div[class*="st-key-try-asking-block"] .stButton>button:not([kind="primary"]) p {
+    font-size: 12px; line-height: 1.45;
   }
   div[class*="st-key-try-asking-block"] .stButton>button:not([kind="primary"]):hover {
     color: #f4f5f6 !important;
   }
+  div[class*="st-key-try-asking-block"] [data-testid="stVerticalBlock"] {
+    gap: 6px;
+  }
+  div[class*="st-key-try-asking-block"] .f1-example-cat { margin: 10px 0 4px; }
   /* ── Inputs ── */
   [data-testid="stNumberInput"] input,
   [data-testid="stTextInput"] input,
