@@ -144,7 +144,7 @@ st.markdown("""
     font-family: 'Titillium Web', sans-serif;
   }
   .stButton>button[kind="primary"] {
-    background: #ff1e2d !important; color: #0a0a0c !important; border: none !important;
+    background: #ff1e2d !important; color: #ffffff !important; border: none !important;
     font-weight: 700; font-size: 12px; letter-spacing: 0.03em;
     clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
   }
