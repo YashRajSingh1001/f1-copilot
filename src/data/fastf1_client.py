@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from typing import Optional
+from fastf1.ergast import Ergast
 from ..config import get
 
 
@@ -140,6 +141,14 @@ def compare_drivers_telemetry(
             driver_a: tel_a[["Distance", "Speed"]].round(2).to_dict(orient="records")[::10],
             driver_b: tel_b[["Distance", "Speed"]].round(2).to_dict(orient="records")[::10],
         },
+        "throttle_traces": {
+            driver_a: tel_a[["Distance", "Throttle"]].round(2).to_dict(orient="records")[::10],
+            driver_b: tel_b[["Distance", "Throttle"]].round(2).to_dict(orient="records")[::10],
+        },
+        "gear_traces": {
+            driver_a: tel_a[["Distance", "nGear"]].round(0).to_dict(orient="records")[::10],
+            driver_b: tel_b[["Distance", "nGear"]].round(0).to_dict(orient="records")[::10],
+        },
     }
 
 
@@ -223,6 +232,56 @@ def get_race_results(session: fastf1.core.Session) -> dict:
     }
 
 
+def get_driver_standings(year: int) -> dict:
+    """Get the Drivers' Championship standings for a season."""
+    try:
+        result = Ergast().get_driver_standings(season=year, round="last")
+        df = result.content[0]
+    except Exception as e:
+        return {"error": f"Could not fetch driver standings for {year}: {e}"}
+
+    if df is None or df.empty:
+        return {"error": f"No driver standings available for {year}"}
+
+    standings = []
+    for _, row in df.iterrows():
+        teams = row.get("constructorNames")
+        team = teams[0] if isinstance(teams, list) and teams else None
+        standings.append({
+            "position": int(row["position"]) if pd.notna(row["position"]) else None,
+            "code": row.get("driverCode"),
+            "name": f"{row.get('givenName', '')} {row.get('familyName', '')}".strip(),
+            "team": team,
+            "points": float(row["points"]) if pd.notna(row["points"]) else 0,
+            "wins": int(row["wins"]) if pd.notna(row["wins"]) else 0,
+        })
+
+    return {"year": year, "standings": standings}
+
+
+def get_constructor_standings(year: int) -> dict:
+    """Get the Constructors' Championship standings for a season."""
+    try:
+        result = Ergast().get_constructor_standings(season=year, round="last")
+        df = result.content[0]
+    except Exception as e:
+        return {"error": f"Could not fetch constructor standings for {year}: {e}"}
+
+    if df is None or df.empty:
+        return {"error": f"No constructor standings available for {year}"}
+
+    standings = []
+    for _, row in df.iterrows():
+        standings.append({
+            "position": int(row["position"]) if pd.notna(row["position"]) else None,
+            "team": row.get("constructorName"),
+            "points": float(row["points"]) if pd.notna(row["points"]) else 0,
+            "wins": int(row["wins"]) if pd.notna(row["wins"]) else 0,
+        })
+
+    return {"year": year, "standings": standings}
+
+
 def get_lap_times_series(session: fastf1.core.Session, driver: str) -> dict:
     """Get lap-by-lap times with compound and stint info — used for degradation charts."""
     laps = session.laps.pick_drivers(driver).copy()
@@ -240,7 +299,18 @@ def get_lap_times_series(session: fastf1.core.Session, driver: str) -> dict:
                 "is_pit_out": pd.notna(lap.get("PitOutTime")) and not pd.isna(lap.get("PitOutTime")),
             })
 
-    return {"driver": driver, "laps": records}
+    clean_times = [r["time_s"] for r in records if not r["is_pit_out"]]
+    stats = {}
+    if clean_times:
+        stats = {
+            "fastest_s": round(float(min(clean_times)), 3),
+            "average_s": round(float(np.mean(clean_times)), 3),
+            "median_s": round(float(np.median(clean_times)), 3),
+            "std_dev_s": round(float(np.std(clean_times)), 3),
+            "lap_count": len(clean_times),
+        }
+
+    return {"driver": driver, "laps": records, "stats": stats}
 
 
 def get_multi_driver_lap_times(

@@ -32,6 +32,10 @@ from ui.charts import (
     multi_driver_pace_chart,
     tire_strategy_chart,
     weather_chart,
+    telemetry_panel_chart,
+    telemetry_comparison_panel_chart,
+    lap_consistency_chart,
+    standings_chart,
 )
 
 
@@ -63,6 +67,7 @@ TOOL_META = {
     "compare_race_pace":   ("🏁", "Comparing race pace"),
     "get_weather":         ("🌡️", "Getting weather data"),
     "get_race_results":    ("🏆", "Fetching race results"),
+    "get_standings":       ("📊", "Fetching championship standings"),
     "search_race_context": ("🔍", "Searching knowledge base"),
 }
 
@@ -75,6 +80,7 @@ TRACE_LABELS = {
     "compare_race_pace": "Race pace",
     "get_weather": "Weather",
     "get_race_results": "Race results",
+    "get_standings": "Standings",
     "search_race_context": "Knowledge search",
 }
 
@@ -359,6 +365,17 @@ def _race_winner_snapshot(year: int, gp: str, session_type: str = "R") -> Option
         return None
 
 
+def _fmt_laptime_str(td_str: str) -> str:
+    """Format a pandas Timedelta str ('0 days 00:01:32.608000') as 'M:SS.mmm'."""
+    try:
+        time_part = td_str.split(" ")[-1]
+        h, m, s = time_part.split(":")
+        total_minutes = int(h) * 60 + int(m)
+        return f"{total_minutes}:{float(s):06.3f}"
+    except Exception:
+        return td_str
+
+
 def _fmt_laptime(td) -> Optional[str]:
     try:
         total = td.total_seconds()
@@ -442,6 +459,27 @@ def render_charts_for_turn(turn_id: int, tool_calls: list) -> bool:
         tool = tc.get("tool")
         args = tc.get("args", {})
 
+        if tool == "get_standings":
+            year = args.get("year")
+            stype_std = args.get("standings_type", "driver")
+            if year:
+                try:
+                    data = (
+                        ff1.get_constructor_standings(year)
+                        if str(stype_std).lower().startswith("c")
+                        else ff1.get_driver_standings(year)
+                    )
+                    fig = standings_chart(data, kind="constructor" if str(stype_std).lower().startswith("c") else "driver")
+                    if fig:
+                        title = f"{year} {'Constructors' if str(stype_std).lower().startswith('c') else 'Drivers'} Championship"
+                        st.markdown(_chart_card_open(title), unsafe_allow_html=True)
+                        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+                        st.markdown("</div>", unsafe_allow_html=True)
+                        charts_rendered = True
+                except Exception:
+                    pass
+            continue
+
         year = args.get("year")
         gp = args.get("grand_prix")
         stype = args.get("session_type", "R")
@@ -454,14 +492,30 @@ def render_charts_for_turn(turn_id: int, tool_calls: list) -> bool:
         except Exception:
             continue
 
+        if tool == "get_telemetry":
+            driver = args.get("driver")
+            lap_number = args.get("lap_number")
+            if driver:
+                try:
+                    data = ff1.get_driver_lap_telemetry(session, driver, lap_number)
+                    fig = telemetry_panel_chart(data)
+                    if fig:
+                        legend = [(driver, DRIVER_COLORS.get(driver, "#c2c4c8"))]
+                        st.markdown(_chart_card_open(f"Telemetry — {driver}", legend), unsafe_allow_html=True)
+                        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+                        st.markdown("</div>", unsafe_allow_html=True)
+                        charts_rendered = True
+                except Exception:
+                    pass
+
         if tool == "compare_telemetry":
             da, db = args.get("driver_a"), args.get("driver_b")
             if da and db:
                 try:
                     data = ff1.compare_drivers_telemetry(session, da, db)
-                    fig = speed_trace_chart(data)
+                    fig = telemetry_comparison_panel_chart(data)
                     legend = [(da, DRIVER_COLORS.get(da, "#c2c4c8")), (db, DRIVER_COLORS.get(db, "#c2c4c8"))]
-                    st.markdown(_chart_card_open(f"Speed trace — {da} vs {db}", legend), unsafe_allow_html=True)
+                    st.markdown(_chart_card_open(f"Telemetry — {da} vs {db}", legend), unsafe_allow_html=True)
                     st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
                     st.markdown("</div>", unsafe_allow_html=True)
                     charts_rendered = True
@@ -498,6 +552,12 @@ def render_charts_for_turn(turn_id: int, tool_calls: list) -> bool:
                         st.markdown(_chart_card_open(f"Lap time progression — {driver}"), unsafe_allow_html=True)
                         st.plotly_chart(fig_l, use_container_width=True, config={"displayModeBar": False})
                         st.markdown("</div>", unsafe_allow_html=True)
+
+                    fig_c = lap_consistency_chart(lap_data)
+                    if fig_c:
+                        st.markdown(_chart_card_open(f"Lap time consistency — {driver}"), unsafe_allow_html=True)
+                        st.plotly_chart(fig_c, use_container_width=True, config={"displayModeBar": False})
+                        st.markdown("</div>", unsafe_allow_html=True)
                     charts_rendered = True
                 except Exception:
                     pass
@@ -511,6 +571,13 @@ def render_charts_for_turn(turn_id: int, tool_calls: list) -> bool:
                     if fig:
                         st.markdown(_chart_card_open(f"Lap time progression — {driver}"), unsafe_allow_html=True)
                         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+                        st.markdown("</div>", unsafe_allow_html=True)
+                        charts_rendered = True
+
+                    fig_c = lap_consistency_chart(lap_data)
+                    if fig_c:
+                        st.markdown(_chart_card_open(f"Lap time consistency — {driver}"), unsafe_allow_html=True)
+                        st.plotly_chart(fig_c, use_container_width=True, config={"displayModeBar": False})
                         st.markdown("</div>", unsafe_allow_html=True)
                         charts_rendered = True
                 except Exception:
@@ -632,6 +699,10 @@ with st.sidebar:
             "Weather & Conditions": [
                 "How did weather affect the 2023 Singapore Grand Prix?",
             ],
+            "Standings": [
+                "What are the 2024 driver standings?",
+                "Show me the 2024 constructors championship",
+            ],
         }
 
         for group, examples in example_groups.items():
@@ -695,108 +766,198 @@ with st.sidebar:
         st.rerun()
 
 
-# ── Top bar ───────────────────────────────────────────────────────────────────
-if st.session_state.current_race:
-    pill_year, pill_gp = st.session_state.current_race
-    pill_text = f"{pill_year} {pill_gp.upper()} GP · RACE"
-else:
-    pill_text = "NO ACTIVE SESSION"
+tab_chat, tab_telemetry = st.tabs(["Copilot", "Telemetry Analysis"])
 
-st.markdown(f"""
-<div class="f1-topbar">
-  <span class="f1-topbar-left">AGENTIC RAG · GPT-4O · LANGGRAPH · FASTF1</span>
-  <span class="f1-live-pill"><span class="f1-live-dot"></span>{pill_text}</span>
-</div>
-""", unsafe_allow_html=True)
-
-
-# ── Chat history ──────────────────────────────────────────────────────────────
-for i, msg in enumerate(st.session_state.messages):
-    if msg["role"] == "user":
-        with st.container(key=f"turn-user-{i}"):
-            st.markdown('<div class="f1-you-label">You</div>', unsafe_allow_html=True)
-            st.markdown(msg["content"])
+with tab_chat:
+    # ── Top bar ───────────────────────────────────────────────────────────────
+    if st.session_state.current_race:
+        pill_year, pill_gp = st.session_state.current_race
+        pill_text = f"{pill_year} {pill_gp.upper()} GP · RACE"
     else:
-        turn_calls = st.session_state.charts_per_turn.get(i, [])
-        with st.container(key=f"turn-assistant-{i}"):
-            trace = _trace_html(turn_calls)
-            if trace:
-                st.markdown(trace, unsafe_allow_html=True)
-            st.markdown(_highlight_numbers(msg["content"]), unsafe_allow_html=True)
-            if turn_calls:
-                render_charts_for_turn(i, turn_calls)
-        st.markdown('<div class="f1-divider"></div>', unsafe_allow_html=True)
+        pill_text = "NO ACTIVE SESSION"
 
-# ── Input ─────────────────────────────────────────────────────────────────────
-pending = st.session_state.pop("pending_question", None)
-user_input = st.chat_input("Ask copilot") or pending
+    st.markdown(f"""
+    <div class="f1-topbar">
+      <span class="f1-topbar-left">AGENTIC RAG · GPT-4O · LANGGRAPH · FASTF1</span>
+      <span class="f1-live-pill"><span class="f1-live-dot"></span>{pill_text}</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-if user_input:
-    auto_race = maybe_auto_ingest(user_input)
 
-    # Track/reuse race context: if the question names a race, remember it;
-    # otherwise fall back to the last ingested/discussed race.
-    detected = detect_race(user_input)
-    if detected:
-        st.session_state.current_race = detected
+    # ── Chat history ──────────────────────────────────────────────────────────
+    for i, msg in enumerate(st.session_state.messages):
+        if msg["role"] == "user":
+            with st.container(key=f"turn-user-{i}"):
+                st.markdown('<div class="f1-you-label">You</div>', unsafe_allow_html=True)
+                st.markdown(msg["content"])
+        else:
+            turn_calls = st.session_state.charts_per_turn.get(i, [])
+            with st.container(key=f"turn-assistant-{i}"):
+                trace = _trace_html(turn_calls)
+                if trace:
+                    st.markdown(trace, unsafe_allow_html=True)
+                st.markdown(_highlight_numbers(msg["content"]), unsafe_allow_html=True)
+                if turn_calls:
+                    render_charts_for_turn(i, turn_calls)
+            st.markdown('<div class="f1-divider"></div>', unsafe_allow_html=True)
 
-    query_for_agent = user_input
-    if not detected and st.session_state.current_race:
-        ctx_year, ctx_gp = st.session_state.current_race
-        query_for_agent = (
-            f"(Context: currently discussing the {ctx_year} {ctx_gp} Grand Prix.) {user_input}"
-        )
+    # ── Input ─────────────────────────────────────────────────────────────────
+    pending = st.session_state.pop("pending_question", None)
+    user_input = st.chat_input("Ask copilot") or pending
 
-    st.session_state.messages.append({"role": "user", "content": user_input})
-    with st.container(key=f"turn-user-{len(st.session_state.messages) - 1}"):
-        st.markdown('<div class="f1-you-label">You</div>', unsafe_allow_html=True)
-        st.markdown(user_input)
+    if user_input:
+        auto_race = maybe_auto_ingest(user_input)
 
-    turn_idx = len(st.session_state.messages)
-    with st.container(key=f"turn-assistant-{turn_idx}"):
+        # Track/reuse race context: if the question names a race, remember it;
+        # otherwise fall back to the last ingested/discussed race.
+        detected = detect_race(user_input)
+        if detected:
+            st.session_state.current_race = detected
 
-        if auto_race:
-            ingest_slot = st.empty()
-            ingest_slot.info(f"Detected **{auto_race}** — ingesting into knowledge base first...")
-            try:
-                yr_str, gp_str = auto_race.split(" ", 1)
-                ingest_race_session(int(yr_str), gp_str, "R")
-                # Pinecone was cleared before this write, so it only holds this race now.
-                st.session_state.ingested_races = {race_key(int(yr_str), gp_str)}
-                st.session_state.current_race = (int(yr_str), gp_str)
-                _refresh_kb_stats()
-                ingest_slot.success(f"{auto_race} ingested into RAG ✓")
-            except Exception:
-                ingest_slot.empty()
+        query_for_agent = user_input
+        if not detected and st.session_state.current_race:
+            ctx_year, ctx_gp = st.session_state.current_race
+            query_for_agent = (
+                f"(Context: currently discussing the {ctx_year} {ctx_gp} Grand Prix.) {user_input}"
+            )
 
-        trace_slot = st.empty()
-        answer_slot = st.empty()
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        with st.container(key=f"turn-user-{len(st.session_state.messages) - 1}"):
+            st.markdown('<div class="f1-you-label">You</div>', unsafe_allow_html=True)
+            st.markdown(user_input)
 
-        active_tools: list = []
-        turn_tool_calls: list = []
-        final_answer = ""
+        turn_idx = len(st.session_state.messages)
+        with st.container(key=f"turn-assistant-{turn_idx}"):
 
-        for event in stream_query(query_for_agent, history=st.session_state.messages[:-1]):
-            if event["type"] == "tool_call":
-                turn_tool_calls.append(event)
-                st.session_state.tool_log.append(event)
-                trace_slot.markdown(_trace_html(turn_tool_calls), unsafe_allow_html=True)
+            if auto_race:
+                ingest_slot = st.empty()
+                ingest_slot.info(f"Detected **{auto_race}** — ingesting into knowledge base first...")
+                try:
+                    yr_str, gp_str = auto_race.split(" ", 1)
+                    ingest_race_session(int(yr_str), gp_str, "R")
+                    # Pinecone was cleared before this write, so it only holds this race now.
+                    st.session_state.ingested_races = {race_key(int(yr_str), gp_str)}
+                    st.session_state.current_race = (int(yr_str), gp_str)
+                    _refresh_kb_stats()
+                    ingest_slot.success(f"{auto_race} ingested into RAG ✓")
+                except Exception:
+                    ingest_slot.empty()
 
-            elif event["type"] == "answer":
-                final_answer = event["content"]
-                answer_slot.markdown(_highlight_numbers(final_answer), unsafe_allow_html=True)
+            trace_slot = st.empty()
+            answer_slot = st.empty()
 
-            elif event["type"] == "done":
-                pass
+            active_tools: list = []
+            turn_tool_calls: list = []
+            final_answer = ""
 
-        st.session_state.charts_per_turn[turn_idx] = turn_tool_calls
-        if turn_tool_calls:
-            render_charts_for_turn(turn_idx, turn_tool_calls)
+            for event in stream_query(query_for_agent, history=st.session_state.messages[:-1]):
+                if event["type"] == "tool_call":
+                    turn_tool_calls.append(event)
+                    st.session_state.tool_log.append(event)
+                    trace_slot.markdown(_trace_html(turn_tool_calls), unsafe_allow_html=True)
 
-        if final_answer:
-            st.session_state.messages.append({"role": "assistant", "content": final_answer})
+                elif event["type"] == "answer":
+                    final_answer = event["content"]
+                    answer_slot.markdown(_highlight_numbers(final_answer), unsafe_allow_html=True)
 
-    st.session_state.turn_count += 1
-    # Rerun so the sidebar "Current session" card and header pill (rendered
-    # earlier in script order) immediately reflect this turn's current_race.
-    st.rerun()
+                elif event["type"] == "done":
+                    pass
+
+            st.session_state.charts_per_turn[turn_idx] = turn_tool_calls
+            if turn_tool_calls:
+                render_charts_for_turn(turn_idx, turn_tool_calls)
+
+            if final_answer:
+                st.session_state.messages.append({"role": "assistant", "content": final_answer})
+
+        st.session_state.turn_count += 1
+        # Rerun so the sidebar "Current session" card and header pill (rendered
+        # earlier in script order) immediately reflect this turn's current_race.
+        st.rerun()
+
+
+with tab_telemetry:
+    st.markdown('<div class="f1-mono-label">Telemetry Analysis</div>', unsafe_allow_html=True)
+
+    tel_col1, tel_col2, tel_col3 = st.columns(3)
+    with tel_col1:
+        tel_year = st.number_input("Year", 2018, date.today().year, date.today().year, step=1, key="tel_year")
+    with tel_col2:
+        tel_gp = st.selectbox("Grand Prix", F1_GPS, index=None, placeholder="Grand Prix", key="tel_gp")
+    with tel_col3:
+        tel_stype_label = st.selectbox("Session", list(SESSION_TYPES.keys()), key="tel_stype")
+    tel_stype = SESSION_TYPES[tel_stype_label]
+
+    if tel_gp:
+        try:
+            with st.spinner(f"Loading {tel_year} {tel_gp}..."):
+                tel_session = get_cached_session(int(tel_year), tel_gp, tel_stype)
+            driver_options = sorted(tel_session.laps["Driver"].unique().tolist())
+        except Exception as e:
+            tel_session = None
+            driver_options = []
+            st.error(f"Could not load session: {e}")
+
+        if driver_options:
+            drv_col1, drv_col2, lap_col = st.columns(3)
+            with drv_col1:
+                tel_driver_a = st.selectbox("Driver A", driver_options, key="tel_driver_a")
+            with drv_col2:
+                tel_driver_b = st.selectbox(
+                    "Driver B (optional, for comparison)",
+                    [None] + driver_options,
+                    key="tel_driver_b",
+                )
+            with lap_col:
+                tel_lap_mode = st.radio("Lap", ["Fastest", "Specific"], key="tel_lap_mode", horizontal=True)
+                tel_lap_number = None
+                if tel_lap_mode == "Specific":
+                    tel_lap_number = st.number_input("Lap number", 1, 100, 1, step=1, key="tel_lap_number")
+
+            if st.button("ANALYSE TELEMETRY", type="primary", key="tel_analyse"):
+                try:
+                    if tel_driver_b and tel_driver_b != tel_driver_a:
+                        data = ff1.compare_drivers_telemetry(
+                            tel_session, tel_driver_a, tel_driver_b,
+                            lap_number_a=tel_lap_number, lap_number_b=tel_lap_number,
+                        )
+                        fig = telemetry_comparison_panel_chart(data)
+                        legend = [
+                            (tel_driver_a, DRIVER_COLORS.get(tel_driver_a, "#c2c4c8")),
+                            (tel_driver_b, DRIVER_COLORS.get(tel_driver_b, "#c2c4c8")),
+                        ]
+                        st.markdown(
+                            _chart_card_open(f"Telemetry — {tel_driver_a} vs {tel_driver_b}", legend),
+                            unsafe_allow_html=True,
+                        )
+                        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+                        st.markdown("</div>", unsafe_allow_html=True)
+                        st.markdown(
+                            f"**{tel_driver_a}**: {_fmt_laptime_str(data['driver_a']['lap_time'])} "
+                            f"(lap {data['driver_a']['lap_number']}, {data['driver_a']['compound']}) · "
+                            f"**{tel_driver_b}**: {_fmt_laptime_str(data['driver_b']['lap_time'])} "
+                            f"(lap {data['driver_b']['lap_number']}, {data['driver_b']['compound']}) · "
+                            f"Gap: {data['gap_seconds']}s"
+                        )
+                    else:
+                        data = ff1.get_driver_lap_telemetry(tel_session, tel_driver_a, tel_lap_number)
+                        fig = telemetry_panel_chart(data)
+                        if fig:
+                            legend = [(tel_driver_a, DRIVER_COLORS.get(tel_driver_a, "#c2c4c8"))]
+                            st.markdown(_chart_card_open(f"Telemetry — {tel_driver_a}", legend), unsafe_allow_html=True)
+                            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+                            st.markdown("</div>", unsafe_allow_html=True)
+                            summary = data.get("telemetry_summary", {})
+                            st.markdown(
+                                f"**Lap {data['lap_number']}** ({data['compound']}) — {_fmt_laptime_str(data['lap_time'])} · "
+                                f"Max speed: {summary.get('max_speed_kmh')} km/h · "
+                                f"Avg speed: {summary.get('avg_speed_kmh')} km/h · "
+                                f"Full throttle: {summary.get('full_throttle_pct')}%"
+                            )
+                        else:
+                            st.warning("No telemetry data available for this selection.")
+                except Exception as e:
+                    st.error(str(e))
+                    st.code(traceback.format_exc())
+    else:
+        st.info("Select a Grand Prix to load telemetry.")

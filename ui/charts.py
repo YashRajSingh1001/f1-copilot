@@ -57,6 +57,177 @@ def speed_trace_chart(comparison_data: dict) -> go.Figure:
     return fig
 
 
+def telemetry_panel_chart(tel_data: dict) -> go.Figure:
+    """3-row panel (Speed / Throttle / Gear) vs distance for a single driver's lap."""
+    driver = tel_data.get("driver", "")
+    speed = tel_data.get("speed_trace", [])
+    throttle = tel_data.get("throttle_trace", [])
+    gear = tel_data.get("gear_trace", [])
+    if not speed:
+        return None
+
+    color = DRIVER_PALETTE[0]
+    fig = make_subplots(
+        rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06,
+        subplot_titles=["Speed (km/h)", "Throttle (%)", "Gear"],
+    )
+
+    fig.add_trace(go.Scatter(
+        x=[p["Distance"] for p in speed], y=[p["Speed"] for p in speed],
+        name=driver, line=dict(color=color, width=2),
+        hovertemplate="Distance: %{x:.0f}m<br>Speed: %{y:.0f} km/h<extra></extra>",
+    ), row=1, col=1)
+
+    if throttle:
+        fig.add_trace(go.Scatter(
+            x=[p["Distance"] for p in throttle], y=[p["Throttle"] for p in throttle],
+            name=f"{driver} Throttle", line=dict(color=color, width=2), showlegend=False,
+            hovertemplate="Distance: %{x:.0f}m<br>Throttle: %{y:.0f}%<extra></extra>",
+        ), row=2, col=1)
+
+    if gear:
+        fig.add_trace(go.Scatter(
+            x=[p["Distance"] for p in gear], y=[p["nGear"] for p in gear],
+            name=f"{driver} Gear", line=dict(color=color, width=2, shape="hv"), showlegend=False,
+            hovertemplate="Distance: %{x:.0f}m<br>Gear: %{y:.0f}<extra></extra>",
+        ), row=3, col=1)
+
+    fig.update_layout(
+        **_BASE,
+        xaxis3=dict(title="Distance (m)", **_AXIS),
+        yaxis=dict(**_AXIS), yaxis2=dict(**_AXIS), yaxis3=dict(**_AXIS),
+        height=520,
+        showlegend=False,
+    )
+    for annotation in fig["layout"]["annotations"]:
+        annotation["font"] = dict(color="#6f7278", size=11, family="Poppins, sans-serif")
+    return fig
+
+
+def telemetry_comparison_panel_chart(comparison_data: dict) -> go.Figure:
+    """3-row panel (Speed / Throttle / Gear) overlaying two drivers' laps."""
+    driver_a = comparison_data.get("driver_a", {}).get("code", "A")
+    driver_b = comparison_data.get("driver_b", {}).get("code", "B")
+    speed_traces = comparison_data.get("speed_traces", {})
+    throttle_traces = comparison_data.get("throttle_traces", {})
+    gear_traces = comparison_data.get("gear_traces", {})
+
+    fig = make_subplots(
+        rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06,
+        subplot_titles=["Speed (km/h)", "Throttle (%)", "Gear"],
+    )
+
+    for drv, color in zip([driver_a, driver_b], DRIVER_PALETTE):
+        pts = speed_traces.get(drv, [])
+        if pts:
+            fig.add_trace(go.Scatter(
+                x=[p["Distance"] for p in pts], y=[p["Speed"] for p in pts],
+                name=drv, line=dict(color=color, width=2),
+                hovertemplate=f"<b>{drv}</b><br>Distance: %{{x:.0f}}m<br>Speed: %{{y:.0f}} km/h<extra></extra>",
+            ), row=1, col=1)
+
+        pts = throttle_traces.get(drv, [])
+        if pts:
+            fig.add_trace(go.Scatter(
+                x=[p["Distance"] for p in pts], y=[p["Throttle"] for p in pts],
+                name=drv, line=dict(color=color, width=2), showlegend=False,
+                hovertemplate=f"<b>{drv}</b><br>Distance: %{{x:.0f}}m<br>Throttle: %{{y:.0f}}%<extra></extra>",
+            ), row=2, col=1)
+
+        pts = gear_traces.get(drv, [])
+        if pts:
+            fig.add_trace(go.Scatter(
+                x=[p["Distance"] for p in pts], y=[p["nGear"] for p in pts],
+                name=drv, line=dict(color=color, width=2, shape="hv"), showlegend=False,
+                hovertemplate=f"<b>{drv}</b><br>Distance: %{{x:.0f}}m<br>Gear: %{{y:.0f}}<extra></extra>",
+            ), row=3, col=1)
+
+    fig.update_layout(
+        **_BASE,
+        xaxis3=dict(title="Distance (m)", **_AXIS),
+        yaxis=dict(**_AXIS), yaxis2=dict(**_AXIS), yaxis3=dict(**_AXIS),
+        height=560,
+    )
+    for annotation in fig["layout"]["annotations"]:
+        annotation["font"] = dict(color="#6f7278", size=11, family="Poppins, sans-serif")
+    return fig
+
+
+def lap_consistency_chart(lap_data: dict) -> go.Figure:
+    """Box plot of lap times grouped by compound, annotated with consistency (std dev)."""
+    driver = lap_data.get("driver", "")
+    laps = lap_data.get("laps", [])
+    stats = lap_data.get("stats", {})
+    if not laps:
+        return None
+
+    by_compound: dict[str, list] = {}
+    for lap in laps:
+        if lap.get("is_pit_out"):
+            continue
+        c = lap.get("compound", "UNKNOWN")
+        by_compound.setdefault(c, []).append(lap["time_s"])
+
+    fig = go.Figure()
+    for compound, times in by_compound.items():
+        fig.add_trace(go.Box(
+            y=times,
+            name=compound,
+            marker_color=COMPOUND_COLORS.get(compound, "#888"),
+            boxpoints="all",
+            jitter=0.4,
+            pointpos=0,
+            hovertemplate=f"<b>{compound}</b><br>%{{y:.3f}}s<extra></extra>",
+        ))
+
+    std_dev = stats.get("std_dev_s")
+    title = f"Consistency (σ={std_dev:.3f}s)" if std_dev is not None else "Consistency"
+
+    fig.update_layout(
+        **_BASE,
+        xaxis=dict(**_AXIS),
+        yaxis=dict(title="Lap Time (s)", **_AXIS),
+        height=260,
+        showlegend=False,
+        title=dict(text=title, font=dict(size=12, color="#6f7278"), x=0),
+    )
+    return fig
+
+
+def standings_chart(standings_data: dict, kind: str = "driver") -> go.Figure:
+    """Horizontal bar chart of championship standings ranked by position."""
+    standings = standings_data.get("standings", [])
+    if not standings:
+        return None
+
+    ranked = sorted(standings, key=lambda s: s.get("position") or 999, reverse=True)
+    labels = [
+        (s.get("code") or s.get("name")) if kind == "driver" else s.get("team")
+        for s in ranked
+    ]
+    points = [s.get("points", 0) for s in ranked]
+    colors = [DRIVER_PALETTE[i % len(DRIVER_PALETTE)] for i in range(len(ranked))]
+
+    fig = go.Figure(go.Bar(
+        x=points,
+        y=labels,
+        orientation="h",
+        marker_color=colors,
+        text=[f"{s.get('position')}. {pts:.0f} pts" for s, pts in zip(ranked, points)],
+        textposition="outside",
+        hovertemplate="<b>%{y}</b><br>Points: %{x}<extra></extra>",
+    ))
+
+    base = {**_BASE, "margin": dict(l=90, r=60, t=20, b=40)}
+    fig.update_layout(
+        **base,
+        xaxis=dict(title="Points", **_AXIS),
+        yaxis=dict(**_AXIS),
+        height=max(260, 28 * len(ranked)),
+    )
+    return fig
+
+
 def sector_delta_chart(sector_data: dict) -> go.Figure:
     """Horizontal bar chart showing sector time deltas (positive = driver_a slower)."""
     driver_a = sector_data.get("driver_a", {}).get("code", "A")

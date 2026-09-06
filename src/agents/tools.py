@@ -160,6 +160,22 @@ def get_race_results(
 
 
 @tool
+def get_standings(
+    year: Annotated[int, "Season year, e.g. 2024"],
+    standings_type: Annotated[str, "'driver' for Drivers' Championship or 'constructor' for Constructors' Championship"] = "driver",
+) -> str:
+    """Get the season championship standings (points, wins, positions) for drivers or constructors."""
+    try:
+        if standings_type.lower().startswith("c"):
+            result = ff1.get_constructor_standings(year)
+        else:
+            result = ff1.get_driver_standings(year)
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@tool
 def search_race_context(
     year: Annotated[int, "Season year, e.g. 2024"],
     grand_prix: Annotated[str, "Grand Prix name, e.g. 'Bahrain'"],
@@ -193,5 +209,6 @@ ALL_TOOLS = [
     compare_race_pace,
     get_weather,
     get_race_results,
+    get_standings,
     search_race_context,
 ]
