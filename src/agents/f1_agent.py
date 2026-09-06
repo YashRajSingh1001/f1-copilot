@@ -30,9 +30,10 @@ TOOL USAGE RULES — always follow these:
 3. For strategy questions: call `get_tire_data` for the specific driver(s) asked about.
 4. For weather questions: call `get_weather` first, then relate conditions to tire/pace impact.
 5. For race overview questions: call `get_race_results` then `search_race_context` (with year and grand_prix) for narrative.
-6. For lap pace analysis: call `get_lap_times_series` or `compare_race_pace`.
+6. For lap pace analysis: call `get_lap_times_series` or `compare_race_pace`. These now return a `stats` block (fastest/average/median/std-dev) — cite it when discussing consistency or degradation.
 7. Always call `search_race_context` with the CORRECT year and grand_prix — if the user mentions a race, extract those details and pass them.
 8. If no year mentioned, assume 2024. If no race mentioned, ask for clarification via context.
+9. For championship/standings/points-table questions: call `get_standings` with the correct year and standings_type ('driver' or 'constructor').
 
 OUTPUT FORMAT:
 - Lead with the direct answer (1-2 sentences)
